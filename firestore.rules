@@ -1,0 +1,72 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    function isSignedIn() {
+      return request.auth != null;
+    }
+
+    function isOwner(userId) {
+      return isSignedIn() && request.auth.uid == userId;
+    }
+
+    function isValidId(id) {
+      return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
+    }
+
+    function isValidDevedor(data) {
+      return data.keys().hasAll(['nomeCompleto', 'taxaJurosMensal', 'saldoDevedorAtual', 'ownerId', 'totalLucroGerado', 'dataCriacao']) &&
+             data.nomeCompleto is string && data.nomeCompleto.size() <= 200 &&
+             (!('whatsapp' in data) || (data.whatsapp is string && data.whatsapp.size() <= 20)) &&
+             data.taxaJurosMensal is number && data.taxaJurosMensal >= 0 &&
+             data.saldoDevedorAtual is number &&
+             data.totalLucroGerado is number &&
+             (!('diaVencimento' in data) || (data.diaVencimento is number && data.diaVencimento >= 1 && data.diaVencimento <= 31)) &&
+             (!('ultimoPagamento' in data) || (data.ultimoPagamento == null || data.ultimoPagamento is timestamp)) &&
+             (!('endereco' in data) || (data.endereco == null || (data.endereco is string && data.endereco.size() <= 500))) &&
+             (!('observacoes' in data) || (data.observacoes == null || (data.observacoes is string && data.observacoes.size() <= 1000))) &&
+             data.ownerId == request.auth.uid;
+    }
+
+    function isValidHistorico(data) {
+      return data.keys().hasAll(['data', 'tipo', 'valorTotal', 'saldoRestante', 'ownerId', 'valorJuros', 'valorAmortizado', 'observacao']) &&
+             data.tipo in ['PAGAMENTO', 'APORTE'] &&
+             data.valorTotal is number &&
+             data.saldoRestante is number &&
+             data.valorJuros is number &&
+             data.valorAmortizado is number &&
+             (data.observacao == null || (data.observacao is string && data.observacao.size() <= 1000)) &&
+             data.ownerId == request.auth.uid;
+    }
+
+    match /devedores/{devedorId} {
+      allow create: if isSignedIn() && isValidId(devedorId) && 
+                      isValidDevedor(request.resource.data);
+      allow get: if isSignedIn() && (resource.data.ownerId == request.auth.uid);
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow update: if isOwner(resource.data.ownerId) && 
+                      isValidDevedor(request.resource.data) &&
+                      request.resource.data.ownerId == resource.data.ownerId &&
+                      request.resource.data.dataCriacao == resource.data.dataCriacao;
+      allow delete: if isOwner(resource.data.ownerId);
+
+      match /historico/{transacaoId} {
+        allow create: if isSignedIn() && isValidId(transacaoId) &&
+                        isValidHistorico(request.resource.data) &&
+                        get(/databases/$(database)/documents/devedores/$(devedorId)).data.ownerId == request.auth.uid;
+        allow get: if isOwner(request.auth.uid); // This needs to be refined if ownerId isn't on doc
+        allow list: if isSignedIn() && (resource == null || resource.data.ownerId == request.auth.uid);
+      }
+    }
+
+    match /autorizacoes/{autorizacaoId} {
+      // Regra restrita: o usuário só pode ler/consultar se o e-mail no documento for o dele
+      allow read: if isSignedIn() && (resource == null || resource.data.email == request.auth.token.email);
+      allow write: if false;
+    }
+  }
+}

@@ -1,0 +1,38 @@
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap');
+@import "tailwindcss";
+
+@theme {
+  --font-sans: "Inter", ui-sans-serif, system-ui, sans-serif;
+  
+  --color-giro-primary: #820ad1;
+  --color-giro-primary-dark: #6a08aa;
+  --color-giro-bg: #f5f5f5;
+  --color-giro-card: #ffffff;
+  --color-giro-text: #111111;
+  --color-giro-text-muted: #767676;
+
+  --shadow-nu: 0 4px 12px rgba(0, 0, 0, 0.05);
+  --shadow-nu-xl: 0 10px 30px rgba(0, 0, 0, 0.1);
+}
+
+@layer base {
+  body {
+    @apply bg-giro-bg text-giro-text font-sans antialiased;
+  }
+}
+
+@utility nu-shadow {
+  box-shadow: var(--shadow-nu);
+}
+
+@utility nu-card {
+  @apply bg-giro-card rounded-[24px] p-5 shadow-nu border border-gray-100;
+}
+
+@utility nu-button-primary {
+  @apply bg-giro-primary text-white font-semibold py-3 px-6 rounded-full hover:bg-giro-primary-dark transition-colors active:scale-95 duration-75 text-center;
+}
+
+@utility nu-button-secondary {
+  @apply bg-gray-100 text-giro-primary font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition-colors active:scale-95 duration-75 text-center;
+}

@@ -1,0 +1,61 @@
+{
+  "entities": {
+    "Devedor": {
+      "title": "Devedor",
+      "description": "Um cliente ou pessoa que possui um saldo devedor.",
+      "type": "object",
+      "properties": {
+        "idDevedor": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "nomeCompleto": { "type": "string" },
+        "whatsapp": { "type": "string" },
+        "taxaJurosMensal": { "type": "number" },
+        "saldoDevedorAtual": { "type": "number" },
+        "totalLucroGerado": { "type": "number" },
+        "dataCriacao": { "type": "string", "format": "date-time" },
+        "endereco": { "type": "string", "description": "Endereço opcional do devedor." },
+        "observacoes": { "type": "string", "description": "Observações gerais sobre o devedor." }
+      },
+      "required": ["nomeCompleto", "taxaJurosMensal", "saldoDevedorAtual", "ownerId"]
+    },
+    "Autorizacao": {
+      "title": "Autorização de Acesso",
+      "description": "Entidade para controle de acesso por e-mail.",
+      "type": "object",
+      "properties": {
+        "email": { "type": "string" },
+        "ativo": { "type": "boolean" }
+      },
+      "required": ["email"]
+    },
+    "Historico": {
+      "title": "Histórico de Transação",
+      "description": "Registro imutável de um aporte ou pagamento.",
+      "type": "object",
+      "properties": {
+        "data": { "type": "string", "format": "date-time" },
+        "tipo": { "type": "string", "enum": ["PAGAMENTO", "APORTE"] },
+        "valorTotal": { "type": "number" },
+        "valorJuros": { "type": "number" },
+        "valorAmortizado": { "type": "number" },
+        "saldoRestante": { "type": "number" },
+        "observacao": { "type": "string" }
+      },
+      "required": ["data", "tipo", "valorTotal", "saldoRestante"]
+    }
+  },
+  "firestore": {
+    "/devedores": {
+      "schema": "Devedor",
+      "description": "Coleção principal de devedores."
+    },
+    "/devedores/{devedorId}/historico": {
+      "schema": "Historico",
+      "description": "Sub-coleção de transações de um devedor."
+    },
+    "/autorizacoes": {
+      "schema": "Autorizacao",
+      "description": "Tabela genérica de e-mails autorizados por sistema."
+    }
+  }
+}
