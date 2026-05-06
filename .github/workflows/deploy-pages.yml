@@ -21,13 +21,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js
+      - name: Setup Node.js and cache
         uses: actions/setup-node@v4
         with:
           node-version: '18'
+          cache: 'npm'
 
       - name: Install dependencies
-        run: npm i --no-optional
+        run: npm ci
+        env:
+          npm_config_unsafe_perm: true
 
       - name: Build
         run: npm run build
