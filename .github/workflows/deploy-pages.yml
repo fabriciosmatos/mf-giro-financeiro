@@ -40,9 +40,10 @@ jobs:
             mv package-lock.json package-lock.ci.json || true
           fi
           pnpm install
-          pnpm rebuild || true
+          pnpm rebuild --build-from-source || pnpm rebuild || true
         env:
           npm_config_unsafe_perm: true
+          npm_config_build_from_source: true
 
       - name: Build
         run: pnpm run build
