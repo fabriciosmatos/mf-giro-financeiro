@@ -11,13 +11,25 @@ export const googleProvider = new GoogleAuthProvider();
 export const loginComGoogle = () => signInWithPopup(auth, googleProvider);
 export const logout = () => signOut(auth);
 
-import { collection, query, where, getDocs } from 'firebase/firestore';
+import { collection, query, where, getDocs, doc, getDocFromServer } from 'firebase/firestore';
 
 enum OperationType {
   GET = 'get',
   LIST = 'list',
   WRITE = 'write',
 }
+
+async function testConnection() {
+  try {
+    await getDocFromServer(doc(db, 'teste', 'conexao'));
+    console.log('Conexão com Firestore OK');
+  } catch (error) {
+    if (error instanceof Error && error.message.includes('offline')) {
+      console.error("Firebase está offline ou configuração inválida.");
+    }
+  }
+}
+testConnection();
 
 function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
   const errInfo = {
@@ -45,6 +57,8 @@ export async function verificarAutorizacao(email: string) {
     const querySnapshot = await getDocs(q);
     return !querySnapshot.empty;
   } catch (error) {
-    handleFirestoreError(error, OperationType.LIST, 'autorizacoes');
+    console.error('Erro ao verificar autorização:', error);
+    // Se der erro de permissão ao ler autorizações, provavelmente não há registros ou o usuário não está na lista
+    return false;
   }
 }

@@ -2,31 +2,50 @@
  * Regras puras para cálculos de juros.
  */
 
-export function calcularMesesDevidos(diaVencimento: number, dataReferencia: Date): number {
+export interface DetalheCobranca {
+  mesesDevidos: number;
+  dataPrimeiroVencimento: Date;
+  dataProximoVencimento: Date;
+  jurosAcumulados: number;
+}
+
+export function calcularDetalhamento(diaVencimento: number, dataReferencia: Date, saldoAtual: number, taxaMensal: number): DetalheCobranca {
   const hoje = new Date();
-  let meses = 0;
+  hoje.setHours(0, 0, 0, 0);
   
-  let dataCiclo = new Date(dataReferencia);
-  dataCiclo.setHours(0, 0, 0, 0);
+  const ref = new Date(dataReferencia);
+  ref.setHours(0, 0, 0, 0);
 
-  // Se a referência é hoje ou no futuro (mesmo mês), ainda não venceu
-  if (dataCiclo.getMonth() === hoje.getMonth() && dataCiclo.getFullYear() === hoje.getFullYear()) {
-    // Só vence se o dia de hoje for >= vencimento E a referência for anterior ao vencimento
-    // Mas a regra de negócio solicitada diz que no mês de cadastro não vence.
-    return 0;
-  }
-
-  if (dataCiclo.getDate() >= diaVencimento) {
+  // O primeiro vencimento após a referência
+  let dataCiclo = new Date(ref.getFullYear(), ref.getMonth(), diaVencimento);
+  
+  // Se o dia do ciclo for na mesma data ou anterior à referência, 
+  // o primeiro vencimento real é no mês seguinte.
+  if (dataCiclo <= ref) {
     dataCiclo.setMonth(dataCiclo.getMonth() + 1);
   }
-  dataCiclo.setDate(diaVencimento);
 
-  while (dataCiclo <= hoje) {
+  const dataPrimeiroVencimento = new Date(dataCiclo);
+  let meses = 0;
+  let cursor = new Date(dataCiclo);
+
+  // Consideramos atrasado se o vencimento for ANTERIOR a hoje (já passou o dia)
+  while (cursor < hoje && saldoAtual > 0) {
     meses++;
-    dataCiclo.setMonth(dataCiclo.getMonth() + 1);
+    cursor.setMonth(cursor.getMonth() + 1);
   }
 
-  return meses;
+  return {
+    mesesDevidos: meses,
+    dataPrimeiroVencimento,
+    dataProximoVencimento: cursor,
+    jurosAcumulados: Number((saldoAtual * (taxaMensal / 100) * meses).toFixed(2))
+  };
+}
+
+export function calcularMesesDevidos(diaVencimento: number, dataReferencia: Date): number {
+  const det = calcularDetalhamento(diaVencimento, dataReferencia, 1000, 0); // saldo irrelevante para contar meses
+  return det.mesesDevidos;
 }
 
 export function calcularJurosAcumulados(saldo: number, taxa: number, meses: number): number {

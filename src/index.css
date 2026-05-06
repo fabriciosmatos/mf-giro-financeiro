@@ -36,3 +36,11 @@
 @utility nu-button-secondary {
   @apply bg-gray-100 text-giro-primary font-semibold py-3 px-6 rounded-full hover:bg-gray-200 transition-colors active:scale-95 duration-75 text-center;
 }
+
+@utility no-scrollbar {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+  &::-webkit-scrollbar {
+    display: none;
+  }
+}

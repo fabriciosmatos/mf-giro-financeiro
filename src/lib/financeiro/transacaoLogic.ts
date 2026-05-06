@@ -12,6 +12,7 @@ export interface ResultadoTransacao {
   jurosPagos: number;
   amortizacao: number;
   lucroAcumulado: number;
+  mesesLiquidados: number;
 }
 
 export function calcularResultadoPagamento(devedor: Devedor, valorPago: number): ResultadoTransacao {
@@ -21,21 +22,23 @@ export function calcularResultadoPagamento(devedor: Devedor, valorPago: number):
     : (devedor.dataCriacao?.toDate ? devedor.dataCriacao.toDate() : new Date());
 
   const mesesDevidosReal = calcularMesesDevidos(diaVencimento, dataReferencia);
+  const juroMensal = Number((devedor.saldoDevedorAtual * (devedor.taxaJurosMensal / 100)).toFixed(2));
   
-  // No Giro, se o usuário está pagando, geralmente ele está pagando o juro do mês atual
-  // Mesmo que o mês não tenha "virado" no calendário de juros acumulados,
-  // se mesesDevidosReal for 0, permitimos que a transação liquide até 1 mês de juros estimando o período.
+  // No Giro, consideramos pelo menos 1 mês se estiver pagando algo e estiver "em dia"
   const mesesParaCobrar = mesesDevidosReal > 0 ? mesesDevidosReal : 1;
+  const jurosTotaisAcumulados = calcularJurosAcumulados(devedor.saldoDevedorAtual, devedor.taxaJurosMensal, mesesParaCobrar);
   
-  const jurosDevidos = calcularJurosAcumulados(devedor.saldoDevedorAtual, devedor.taxaJurosMensal, mesesParaCobrar);
-  
-  const { juros, amortizacao } = decomporPagamento(valorPago, jurosDevidos);
+  const { juros, amortizacao } = decomporPagamento(valorPago, jurosTotaisAcumulados);
   const novoSaldo = simularNovoSaldo(devedor.saldoDevedorAtual, amortizacao, 'AMORTIZACAO');
+
+  // Determinar quantos meses foram quitados (inteiros)
+  const mesesLiquidados = juroMensal > 0 ? Math.floor(juros / juroMensal) : 0;
 
   return {
     novoSaldo,
     jurosPagos: juros,
     amortizacao,
-    lucroAcumulado: Number(((devedor.totalLucroGerado || 0) + juros).toFixed(2))
+    lucroAcumulado: Number(((devedor.totalLucroGerado || 0) + juros).toFixed(2)),
+    mesesLiquidados
   };
 }

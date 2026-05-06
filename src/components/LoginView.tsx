@@ -16,9 +16,9 @@ export function LoginView({ error, setError }: LoginViewProps) {
     try {
       await loginComGoogle();
       // O hook useDashboardData cuidará da verificação de autorização e do estado global
-    } catch (err) {
+    } catch (err: any) {
       console.error('Erro no login:', err);
-      setError('Ocorreu um erro ao tentar entrar. Tente novamente.');
+      setError(err?.message || 'Ocorreu um erro ao tentar entrar. Tente novamente.');
       setLoading(false);
     }
     // Não damos setLoading(false) aqui se o login for bem-decidido pois o componente será
@@ -39,10 +39,10 @@ export function LoginView({ error, setError }: LoginViewProps) {
         <div className="mb-6 p-4 bg-red-50 border border-red-100 rounded-2xl flex flex-col gap-2 max-w-sm w-full animate-in fade-in slide-in-from-top-2">
           <div className="flex items-start gap-3">
             <AlertCircle className="w-5 h-5 text-red-600 mt-0.5 shrink-0" />
-            <p className="text-sm font-semibold text-red-900 leading-tight">Acesso Não Autorizado</p>
+            <p className="text-sm font-semibold text-red-900 leading-tight">Problema no Acesso</p>
           </div>
           <p className="text-xs text-red-700 ml-8">{error}</p>
-          <p className="text-[10px] text-red-400 ml-8 mt-2 italic">Contate o administrador para liberar seu acesso.</p>
+          <p className="text-[10px] text-red-400 ml-8 mt-2 italic">Se for erro de permissão, contate o administrador. Se for erro técnico, tente recarregar a página.</p>
         </div>
       )}
 

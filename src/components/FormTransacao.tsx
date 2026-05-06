@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { Devedor, TipoTransacao } from '../types';
 import { gestorTransacoes } from '../lib/gestorTransacoes';
-import { calcularJurosDoPeriodo } from '../lib/financeiro/juros';
+import { calcularJurosDoPeriodo, calcularMesesDevidos, calcularJurosAcumulados } from '../lib/financeiro/juros';
 import { decomporPagamento } from '../lib/financeiro/amortizacao';
 import { formatarMoeda } from '../lib/utils';
 
@@ -20,7 +20,15 @@ export default function FormTransacao({ devedor, tipo, onSuccess }: FormTransaca
   const jurosEstimado = (() => {
     const saldo = devedor.saldoDevedorAtual;
     const taxa = devedor.taxaJurosMensal;
-    return calcularJurosDoPeriodo(saldo, taxa);
+    
+    const dataReferencia = devedor.ultimoPagamento 
+      ? (devedor.ultimoPagamento.toDate ? devedor.ultimoPagamento.toDate() : new Date(devedor.ultimoPagamento))
+      : (devedor.dataCriacao?.toDate ? devedor.dataCriacao.toDate() : new Date());
+
+    const meses = calcularMesesDevidos(diaVencimento, dataReferencia);
+    const mesesParaCobrar = meses > 0 ? meses : 1;
+    
+    return calcularJurosAcumulados(saldo, taxa, mesesParaCobrar);
   })();
 
   const [valor, setValor] = useState(tipo === 'PAGAMENTO' ? jurosEstimado.toString() : '');

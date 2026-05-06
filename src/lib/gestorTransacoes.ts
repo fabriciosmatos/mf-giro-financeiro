@@ -18,9 +18,19 @@ export const gestorTransacoes = {
   async processarPagamento(devedor: Devedor, transacaoInput: TransacaoInput) {
     const { valor, observacao, data } = transacaoInput;
     
-    const { novoSaldo, jurosPagos, amortizacao, lucroAcumulado } = calcularResultadoPagamento(devedor, valor);
+    const { novoSaldo, jurosPagos, amortizacao, lucroAcumulado, mesesLiquidados } = calcularResultadoPagamento(devedor, valor);
 
-    const timestamp = data ? new Date(data + 'T12:00:00') : serverTimestamp();
+    const timestamp = data ? new Date(data + 'T12:00:00') : new Date();
+
+    const currentRef = devedor.ultimoPagamento 
+      ? (devedor.ultimoPagamento.toDate ? devedor.ultimoPagamento.toDate() : new Date(devedor.ultimoPagamento))
+      : (devedor.dataCriacao?.toDate ? devedor.dataCriacao.toDate() : new Date());
+
+    // Avançamos o ultimoPagamento baseado nos meses que foram efetivamente pagos
+    const novoUltimoPagamento = new Date(currentRef);
+    if (mesesLiquidados > 0) {
+      novoUltimoPagamento.setMonth(novoUltimoPagamento.getMonth() + mesesLiquidados);
+    }
 
     const transacao: Omit<Historico, 'id'> = {
       data: timestamp,
@@ -36,7 +46,7 @@ export const gestorTransacoes = {
     await servicoDados.atualizarDevedor(devedor.id!, {
       saldoDevedorAtual: novoSaldo,
       totalLucroGerado: lucroAcumulado as any,
-      ultimoPagamento: timestamp
+      ultimoPagamento: novoUltimoPagamento
     });
   },
 

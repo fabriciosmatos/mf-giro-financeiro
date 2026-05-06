@@ -1,4 +1,5 @@
 import { Devedor } from '../../types';
+import { calcularMesesDevidos, calcularDetalhamento } from './juros';
 
 export interface InfoStatus {
   label: string;
@@ -8,49 +9,27 @@ export interface InfoStatus {
 }
 
 export function getProximoVencimento(devedor: Devedor): Date {
-  const hoje = new Date();
   const diaVenc = devedor.diaVencimento || (devedor.dataCriacao?.toDate ? devedor.dataCriacao.toDate().getDate() : new Date(devedor.dataCriacao).getDate());
   
-  let proximo = new Date(hoje.getFullYear(), hoje.getMonth(), diaVenc);
-  
-  let pagoEsteMes = false;
-  if (devedor.ultimoPagamento) {
-    const dataPagto = devedor.ultimoPagamento.toDate ? devedor.ultimoPagamento.toDate() : new Date(devedor.ultimoPagamento);
-    if (dataPagto.getMonth() === hoje.getMonth() && dataPagto.getFullYear() === hoje.getFullYear()) {
-      pagoEsteMes = true;
-    }
-  }
+  const dataReferencia = devedor.ultimoPagamento 
+    ? (devedor.ultimoPagamento.toDate ? devedor.ultimoPagamento.toDate() : new Date(devedor.ultimoPagamento))
+    : (devedor.dataCriacao?.toDate ? devedor.dataCriacao.toDate() : new Date());
 
-  // Se o dia de vencimento já passou este mês OU se já pagou este mês
-  if (hoje.getDate() > diaVenc || pagoEsteMes) {
-    proximo.setMonth(proximo.getMonth() + 1);
-  }
+  const det = calcularDetalhamento(diaVenc, dataReferencia, devedor.saldoDevedorAtual, devedor.taxaJurosMensal);
   
-  return proximo;
+  return det.dataProximoVencimento;
 }
 
 export function getDataOrdenacao(devedor: Devedor): number {
   if (devedor.saldoDevedorAtual === 0) return Infinity;
 
-  const info = getInfoStatus(devedor);
-  const hoje = new Date();
-  const diaVenc = devedor.diaVencimento || (devedor.dataCriacao?.toDate ? devedor.dataCriacao.toDate().getDate() : new Date(devedor.dataCriacao).getDate());
+  // Pegamos a data de referência (último pagamento ou criação)
+  const dataReferencia = devedor.ultimoPagamento 
+    ? (devedor.ultimoPagamento.toDate ? devedor.ultimoPagamento.toDate() : new Date(devedor.ultimoPagamento))
+    : (devedor.dataCriacao?.toDate ? devedor.dataCriacao.toDate() : new Date());
 
-  if (info.isAtrasado || info.label === 'Vence Hoje') {
-    // Para atrasados ou vence hoje, usamos a data do vencimento que passou ou atual
-    // Isso garante que fiquem no topo (datas menores/mais antigas)
-    const hojeDia = hoje.getDate();
-    let dataReferencia = new Date(hoje.getFullYear(), hoje.getMonth(), diaVenc);
-    
-    // Se hoje é dia 1-5 e o vencimento é 20-31, o atraso é do mês anterior
-    if (hojeDia <= 5 && diaVenc > 20 && info.isAtrasado) {
-      dataReferencia.setMonth(dataReferencia.getMonth() - 1);
-    }
-    return dataReferencia.getTime();
-  }
-
-  // Para os demais, usamos a próxima data de vencimento
-  return getProximoVencimento(devedor).getTime();
+  // Quanto mais antiga a referência, mais "atrasado" ou prioritário ele é
+  return dataReferencia.getTime();
 }
 
 export function getInfoStatus(devedor: Devedor): InfoStatus {
@@ -64,42 +43,32 @@ export function getInfoStatus(devedor: Devedor): InfoStatus {
   
   const diaVenc = devedor.diaVencimento || (devedor.dataCriacao?.toDate ? devedor.dataCriacao.toDate().getDate() : new Date(devedor.dataCriacao).getDate());
   
-  const dataCriacao = devedor.dataCriacao?.toDate ? devedor.dataCriacao.toDate() : new Date(devedor.dataCriacao);
-  const isCriadoEsteMes = dataCriacao.getMonth() === hoje.getMonth() && dataCriacao.getFullYear() === hoje.getFullYear();
+  const dataReferencia = devedor.ultimoPagamento 
+    ? (devedor.ultimoPagamento.toDate ? devedor.ultimoPagamento.toDate() : new Date(devedor.ultimoPagamento))
+    : (devedor.dataCriacao?.toDate ? devedor.dataCriacao.toDate() : new Date());
 
-  let pagoEsteMes = false;
-  if (devedor.ultimoPagamento) {
-    const dataPagto = devedor.ultimoPagamento.toDate ? devedor.ultimoPagamento.toDate() : new Date(devedor.ultimoPagamento);
-    if (dataPagto.getMonth() === hoje.getMonth() && dataPagto.getFullYear() === hoje.getFullYear()) {
-      pagoEsteMes = true;
-    }
+  const detalhe = calcularDetalhamento(diaVenc, dataReferencia, devedor.saldoDevedorAtual, devedor.taxaJurosMensal);
+  const mesesDevidos = detalhe.mesesDevidos;
+  
+  // Se tem meses acumulados, está atrasado indepedente do dia de hoje
+  if (mesesDevidos > 0) {
+    return { 
+      label: mesesDevidos > 1 ? `Atraso (${mesesDevidos}x)` : 'Em Atraso', 
+      color: 'bg-red-100 text-red-700', 
+      prioridade: 10, 
+      isAtrasado: true 
+    };
   }
 
-  // LOGS PARA ANÁLISE
-  console.log(`[StatusLogic] Devedor: ${devedor.nomeCompleto}`);
-  console.log(`- Dia Venc: ${diaVenc} | Hoje Dia: ${hojeDia}`);
-  console.log(`- Pago este mês: ${pagoEsteMes} | Criado este mês: ${isCriadoEsteMes}`);
+  // Se não tem meses devidos, verificamos se o próximo vencimento é hoje ou amanhã
+  const proximoVenc = detalhe.dataPrimeiroVencimento; // Se meses=0, este é o próximo futuro
+  const diffDays = Math.ceil((proximoVenc.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
 
-  if (pagoEsteMes) {
-    return { label: 'Em Dia', color: 'bg-giro-primary/10 text-giro-primary', prioridade: 60 };
-  }
-
-  // Prioridade 1: Atrasados (Dia de vencimento já passou)
-  const isCedoNoMes = hojeDia <= 5;
-  const isVencimentoFinalMes = diaVenc > 20;
-
-  if (diaVenc < hojeDia || (isCedoNoMes && isVencimentoFinalMes)) {
-    console.log(`- Detectado Atraso: ${diaVenc < hojeDia ? 'Dia passou' : 'Venc. mês passado'}`);
-    return { label: 'Em Atraso', color: 'bg-red-100 text-red-700', prioridade: 10, isAtrasado: true };
-  }
-
-  // Prioridade 2: Vence Hoje (Mantemos isAtrasado false para aparecer em "Em Dia")
-  if (diaVenc === hojeDia) {
+  if (diffDays === 0) {
     return { label: 'Vence Hoje', color: 'bg-yellow-100 text-yellow-700', prioridade: 20, isAtrasado: false };
   }
 
-  // Prioridade 3: Vence Amanhã
-  if (diaVenc === hojeDia + 1) {
+  if (diffDays === 1) {
     return { label: 'Vence Amanhã', color: 'bg-blue-100 text-blue-700', prioridade: 30 };
   }
 
