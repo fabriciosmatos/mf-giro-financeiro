@@ -21,21 +21,26 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Setup Node.js and cache
+      - name: Setup Node.js and pnpm cache
         uses: actions/setup-node@v4
         with:
           node-version: '18'
-          cache: 'npm'
+          cache: 'pnpm'
 
-      - name: Install dependencies (remove lockfile on CI)
+      - name: Setup pnpm
+        uses: pnpm/action-setup@v2
+        with:
+          version: latest
+
+      - name: Install dependencies with pnpm
         run: |
           set -e
           if [ -f package-lock.json ]; then
-            echo "Detected committed package-lock.json — moving it to avoid platform-locked native bindings"
+            echo "Detected package-lock.json — moving it to avoid platform-locked native bindings"
             mv package-lock.json package-lock.ci.json || true
           fi
-          npm i
-          npm rebuild || true
+          pnpm install
+          pnpm rebuild || true
         env:
           npm_config_unsafe_perm: true
 
