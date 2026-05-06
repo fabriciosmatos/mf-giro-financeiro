@@ -3,6 +3,7 @@ import {
   doc, 
   addDoc, 
   updateDoc, 
+  deleteDoc,
   getDocs, 
   getDoc, 
   query, 
@@ -110,6 +111,16 @@ export const servicoDados = {
       await updateDoc(docRef, dados);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, path);
+    }
+  },
+
+  async excluirDevedor(id: string) {
+    const path = `devedores/${id}`;
+    try {
+      const docRef = doc(db, 'devedores', id);
+      await deleteDoc(docRef);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, path);
     }
   },
 

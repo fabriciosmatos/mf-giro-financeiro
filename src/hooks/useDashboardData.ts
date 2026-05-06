@@ -5,7 +5,7 @@ import { servicoDados } from '../services/servicoDados';
 import { Devedor } from '../types';
 import { getProximoVencimento, getInfoStatus, getDataOrdenacao } from '../lib/financeiro/statusLogic';
 
-export type FiltroStatus = 'TODOS' | 'ATRASO' | 'DIA' | 'QUITADO';
+export type StatusDebito = 'ATRASO' | 'DIA' | 'QUITADO';
 export type TipoOrdenacao = 'PRIORIDADE' | 'VALOR_ALTO' | 'VALOR_BAIXO';
 
 export function useDashboardData() {
@@ -15,7 +15,7 @@ export function useDashboardData() {
   const [devedores, setDevedores] = useState<Devedor[]>([]);
   const [loading, setLoading] = useState(true);
   const [termoBusca, setTermoBusca] = useState('');
-  const [filtroStatus, setFiltroStatus] = useState<FiltroStatus>('TODOS');
+  const [statusSelecionados, setStatusSelecionados] = useState<StatusDebito[]>(['ATRASO', 'DIA']);
   const [ordenacao, setOrdenacao] = useState<TipoOrdenacao>('PRIORIDADE');
 
   useEffect(() => {
@@ -70,19 +70,24 @@ export function useDashboardData() {
   }, [devedores]);
 
   const devedoresFiltrados = useMemo(() => {
+    // Filtro inicial por termo de busca
     let filtrados = devedores.filter(d => 
       d.nomeCompleto.toLowerCase().includes(termoBusca.toLowerCase())
     );
 
-    if (filtroStatus !== 'TODOS') {
-      filtrados = filtrados.filter(d => {
-        const info = getInfoStatus(d);
-        if (filtroStatus === 'QUITADO') return d.saldoDevedorAtual === 0;
-        if (filtroStatus === 'ATRASO') return info.isAtrasado;
-        if (filtroStatus === 'DIA') return !info.isAtrasado && d.saldoDevedorAtual > 0;
-        return true;
-      });
-    }
+    // Depois filtramos pelos status selecionados nos checkboxes
+    filtrados = filtrados.filter(d => {
+      const info = getInfoStatus(d);
+      let status: StatusDebito;
+      
+      if (d.saldoDevedorAtual <= 0) {
+        status = 'QUITADO';
+      } else {
+        status = info.isAtrasado ? 'ATRASO' : 'DIA';
+      }
+      
+      return statusSelecionados.includes(status);
+    });
 
     return filtrados.sort((a, b) => {
       if (ordenacao === 'VALOR_ALTO') return b.saldoDevedorAtual - a.saldoDevedorAtual;
@@ -101,7 +106,7 @@ export function useDashboardData() {
       
       return b.saldoDevedorAtual - a.saldoDevedorAtual;
     });
-  }, [devedores, termoBusca, filtroStatus, ordenacao]);
+  }, [devedores, termoBusca, statusSelecionados, ordenacao]);
 
   return {
     user,
@@ -112,8 +117,8 @@ export function useDashboardData() {
     totais,
     termoBusca,
     setTermoBusca,
-    filtroStatus,
-    setFiltroStatus,
+    statusSelecionados,
+    setStatusSelecionados,
     ordenacao,
     setOrdenacao,
     refresh: carregarDados

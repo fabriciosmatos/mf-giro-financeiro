@@ -1,7 +1,7 @@
 import React from 'react';
 import { Devedor } from '../types';
 import { formatarMoeda, cn } from '../lib/utils';
-import { MessageCircle, ArrowUpCircle, ArrowDownCircle, History, CalendarClock, Pencil } from 'lucide-react';
+import { MessageCircle, ArrowUpCircle, ArrowDownCircle, History, CalendarClock, Pencil, X, MoreVertical } from 'lucide-react';
 import { calcularJurosDoPeriodo, calcularMesesDevidos, calcularJurosAcumulados } from '../lib/financeiro/juros';
 import { getProximoVencimento, getInfoStatus } from '../lib/financeiro/statusLogic';
 
@@ -11,9 +11,11 @@ interface DevedorCardProps {
   onAporte: (d: Devedor) => void;
   onVerHistorico: (d: Devedor) => void;
   onEditar: (d: Devedor) => void;
+  onExcluir: (d: Devedor) => void;
 }
 
-export const DevedorCard: React.FC<DevedorCardProps> = ({ devedor, onPagar, onAporte, onVerHistorico, onEditar }) => {
+export const DevedorCard: React.FC<DevedorCardProps> = ({ devedor, onPagar, onAporte, onVerHistorico, onEditar, onExcluir }) => {
+  const [showMenu, setShowMenu] = React.useState(false);
   const iniciais = devedor.nomeCompleto.split(' ').map(n => n[0]).join('').substring(0, 2).toUpperCase();
   
   const diaVencimento = devedor.diaVencimento || (devedor.dataCriacao?.toDate ? devedor.dataCriacao.toDate().getDate() : new Date(devedor.dataCriacao).getDate());
@@ -79,45 +81,74 @@ export const DevedorCard: React.FC<DevedorCardProps> = ({ devedor, onPagar, onAp
 
   return (
     <div className="nu-card mb-3 p-4 flex flex-col gap-3 text-giro-text">
-      <div className="flex items-center justify-between">
-        <div className="flex items-center gap-3 min-w-0">
-          <div className="w-10 h-10 bg-giro-primary/10 rounded-full flex items-center justify-center text-giro-primary font-bold text-sm shrink-0">
-            {iniciais}
+        <div className="flex items-start justify-between relative">
+          <div className="flex items-center gap-3 min-w-0">
+            <div className="w-10 h-10 bg-giro-primary/10 rounded-full flex items-center justify-center text-giro-primary font-bold text-sm shrink-0 shadow-sm border border-giro-primary/5">
+              {iniciais}
+            </div>
+            <div className="flex flex-col min-w-0">
+              <h3 className="font-black text-giro-text text-base leading-tight truncate tracking-tight">{devedor.nomeCompleto}</h3>
+              <div className="flex items-center gap-2 mt-0.5">
+                <span className={cn("text-[9px] font-black px-1.5 py-0.5 rounded-md uppercase tracking-wider whitespace-nowrap shrink-0", status.color)}>
+                  {status.label}
+                </span>
+                <span className="flex items-center gap-1 text-[9px] font-bold text-giro-text-muted uppercase whitespace-nowrap">
+                  <CalendarClock className="w-2.5 h-2.5" /> {dataTexto}
+                </span>
+              </div>
+            </div>
           </div>
-          <div className="flex flex-col min-w-0">
-            <h3 className="font-bold text-base leading-tight truncate">{devedor.nomeCompleto}</h3>
-            {devedor.endereco && (
-              <span className="text-[9px] text-giro-text-muted italic truncate max-w-[150px]">
-                {devedor.endereco}
-              </span>
-            )}
-            <div className="flex items-center gap-2 mt-1">
-               <span className={cn("text-[9px] font-extrabold px-1.5 py-0.5 rounded-md uppercase tracking-wider whitespace-nowrap shrink-0", status.color)}>
-                {status.label}
-              </span>
-              <span className="flex items-center gap-1 text-[9px] font-bold text-giro-text-muted uppercase whitespace-nowrap">
-                <CalendarClock className="w-2.5 h-2.5" /> {status.isAtrasado ? 'Vencido' : 'Vence'} {dataTexto}
-              </span>
+          
+          <div className="flex items-center gap-0 shrink-0">
+            <a 
+              href={zapUrl} 
+              target="_blank" 
+              rel="noopener noreferrer"
+              className="p-2 text-green-600 hover:bg-green-50 rounded-full transition-all active:scale-90"
+              title="WhatsApp"
+            >
+              <MessageCircle className="w-5 h-5 fill-current" />
+            </a>
+            
+            <div className="relative">
+              <button 
+                onClick={() => setShowMenu(!showMenu)} 
+                className={cn(
+                  "p-2 rounded-full transition-all active:scale-90",
+                  showMenu ? "bg-gray-100 text-giro-primary" : "text-giro-text-muted hover:bg-gray-50"
+                )}
+              >
+                <MoreVertical className="w-5 h-5" />
+              </button>
+
+              {showMenu && (
+                <>
+                  <div 
+                    className="fixed inset-0 z-[110]" 
+                    onClick={() => setShowMenu(false)}
+                  />
+                  <div className="absolute right-0 mt-1 w-40 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[120] py-1.5 overflow-hidden animate-in fade-in zoom-in duration-150 origin-top-right">
+                    <button
+                      onClick={() => { onEditar(devedor); setShowMenu(false); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-[10px] font-bold text-giro-text hover:bg-giro-primary/5 transition-colors uppercase tracking-wider"
+                    >
+                      <Pencil className="w-3.5 h-3.5 text-giro-primary/60" />
+                      Editar Dados
+                    </button>
+                    <div className="h-[1px] bg-gray-50 mx-2" />
+                    <button
+                      onClick={() => { onExcluir(devedor); setShowMenu(false); }}
+                      className="w-full flex items-center gap-3 px-4 py-2.5 text-[10px] font-bold text-red-600 hover:bg-red-50 transition-colors uppercase tracking-wider"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                      Excluir Cliente
+                    </button>
+                  </div>
+                </>
+              )}
             </div>
           </div>
         </div>
-        <div className="flex items-center gap-0.5 shrink-0">
-          <button 
-            onClick={() => onEditar(devedor)} 
-            className="p-1 px-1.5 text-giro-primary/40 hover:text-giro-primary hover:bg-giro-primary/5 rounded-full transition-colors"
-          >
-            <Pencil className="w-4 h-4" />
-          </button>
-          <a 
-            href={zapUrl} 
-            target="_blank" 
-            rel="noopener noreferrer"
-            className="p-1 px-1.5 text-green-600 hover:bg-green-50 rounded-full transition-colors"
-          >
-            <MessageCircle className="w-5 h-5 fill-current" />
-          </a>
-        </div>
-      </div>
 
       <div className="flex items-end py-3 border-y border-gray-50/80">
         <div className="flex flex-col flex-1 min-w-0">
