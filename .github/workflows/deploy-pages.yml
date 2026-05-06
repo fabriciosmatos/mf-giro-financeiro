@@ -32,6 +32,15 @@ jobs:
         with:
           version: latest
 
+      - name: Ensure pnpm is available (fallback via Corepack)
+        run: |
+          if ! command -v pnpm >/dev/null 2>&1; then
+            echo "pnpm not found — enabling Corepack and preparing pnpm"
+            corepack enable
+            corepack prepare pnpm@latest --activate
+          fi
+          pnpm --version
+
       - name: Install dependencies with pnpm
         run: |
           set -e
@@ -45,7 +54,7 @@ jobs:
           npm_config_unsafe_perm: true
 
       - name: Build
-        run: npm run build
+        run: pnpm run build
 
       - name: Deploy to gh-pages
         uses: JamesIves/github-pages-deploy-action@v4
