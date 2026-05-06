@@ -27,18 +27,10 @@ jobs:
           node-version: '18'
           cache: 'pnpm'
 
-      - name: Setup pnpm
-        uses: pnpm/action-setup@v2
-        with:
-          version: latest
-
-      - name: Ensure pnpm is available (fallback via Corepack)
+      - name: Enable Corepack and prepare pnpm
         run: |
-          if ! command -v pnpm >/dev/null 2>&1; then
-            echo "pnpm not found — enabling Corepack and preparing pnpm"
-            corepack enable
-            corepack prepare pnpm@latest --activate
-          fi
+          corepack enable
+          corepack prepare pnpm@latest --activate
           pnpm --version
 
       - name: Install dependencies with pnpm
