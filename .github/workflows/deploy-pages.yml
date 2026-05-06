@@ -34,7 +34,13 @@ jobs:
       - name: Install dependencies with npm (resolve native optionals)
         run: |
           set -e
-          npm i
+          if [ -f package-lock.json ]; then
+            echo "package-lock.json found — using npm ci"
+            npm ci --prefer-offline --no-audit --progress=false || npm i --legacy-peer-deps
+          else
+            echo "no package-lock.json — using npm i"
+            npm i --legacy-peer-deps
+          fi
           npm rebuild --build-from-source || npm rebuild || true
         env:
           npm_config_unsafe_perm: true
