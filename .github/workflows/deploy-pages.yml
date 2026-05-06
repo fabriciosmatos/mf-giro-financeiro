@@ -26,27 +26,22 @@ jobs:
         with:
           node-version: '18'
 
-      - name: Enable Corepack and prepare pnpm
-        run: |
-          corepack enable
-          corepack prepare pnpm@latest --activate
-          pnpm --version
-
-      - name: Install dependencies with pnpm
+      - name: Clean potential lockfiles and node_modules
         run: |
           set -e
-          if [ -f package-lock.json ]; then
-            echo "Detected package-lock.json — moving it to avoid platform-locked native bindings"
-            mv package-lock.json package-lock.ci.json || true
-          fi
-          pnpm install
-          pnpm rebuild --build-from-source || pnpm rebuild || true
+          rm -rf node_modules pnpm-lock.yaml package-lock.json package-lock.ci.json || true
+
+      - name: Install dependencies with npm (resolve native optionals)
+        run: |
+          set -e
+          npm i
+          npm rebuild --build-from-source || npm rebuild || true
         env:
           npm_config_unsafe_perm: true
           npm_config_build_from_source: true
 
       - name: Build
-        run: pnpm run build
+        run: npm run build
 
       - name: Deploy to gh-pages
         uses: JamesIves/github-pages-deploy-action@v4
