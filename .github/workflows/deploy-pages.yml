@@ -27,10 +27,14 @@ jobs:
           node-version: '18'
           cache: 'npm'
 
-      - name: Install dependencies (ci || install)
+      - name: Install dependencies (remove lockfile on CI)
         run: |
           set -e
-          npm ci || npm i
+          if [ -f package-lock.json ]; then
+            echo "Detected committed package-lock.json — moving it to avoid platform-locked native bindings"
+            mv package-lock.json package-lock.ci.json || true
+          fi
+          npm i
           npm rebuild || true
         env:
           npm_config_unsafe_perm: true
