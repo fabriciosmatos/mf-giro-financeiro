@@ -1,0 +1,43 @@
+name: Deploy to GitHub Pages
+
+on:
+  push:
+    branches:
+      - main
+
+permissions:
+  contents: write # Necessário para o JamesIves dar push na branch gh-pages
+  pages: write
+  id-token: write
+
+concurrency:
+  group: 'deploy-pages'
+  cancel-in-progress: true
+
+jobs:
+  build-and-deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '20' # Atualizei para 20, que é a LTS atual e lida melhor com binários nativos
+          cache: 'npm'
+
+      - name: Install dependencies
+        # Removi o rm -rf para permitir que o cache do npm funcione. 
+        # O segredo aqui é o --include=optional para garantir o binário do Tailwind Oxide.
+        run: npm install --include=optional
+
+      - name: Build
+        run: npm run build
+
+      - name: Deploy to gh-pages
+        uses: JamesIves/github-pages-deploy-action@v4
+        with:
+          branch: gh-pages
+          folder: dist
+          token: ${{ secrets.GITHUB_TOKEN }}
