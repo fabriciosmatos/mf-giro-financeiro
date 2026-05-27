@@ -198,17 +198,6 @@ export const CartaoDevedor: React.FC<CartaoDevedorProps> = ({
         <span className="text-[10px] font-black text-green-700">{formatarMoeda(devedor.totalLucroGerado || 0)}</span>
       </div>
 
-      {(devedor.criadoPorEmail || devedor.ultimaAlteracaoPorEmail) && (
-        <div className="bg-gray-50 p-2 rounded-xl text-[8px] text-giro-text-muted/90 flex flex-col gap-0.5 border border-gray-100/50">
-          {devedor.criadoPorEmail && (
-            <div>Criado por: <strong className="text-giro-text font-bold">{devedor.criadoPorNome || devedor.criadoPorEmail}</strong></div>
-          )}
-          {devedor.ultimaAlteracaoPorEmail && (
-            <div>Última alteração por: <strong className="text-giro-text font-bold">{devedor.ultimaAlteracaoPorNome || devedor.ultimaAlteracaoPorEmail}</strong></div>
-          )}
-        </div>
-      )}
-
       <div className="grid grid-cols-3 gap-2">
         <button 
           onClick={() => onPagar(devedor)}
