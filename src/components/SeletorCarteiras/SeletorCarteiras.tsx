@@ -28,6 +28,7 @@ import {
   Database
 } from 'lucide-react';
 import { servicoDados } from '../../services/servicoDados';
+import { auth } from '../../lib/firebase';
 
 interface SeletorCarteirasProps {
   carteiras: Carteira[];
@@ -147,60 +148,72 @@ export function SeletorCarteiras({
             Selecione ou Crie
           </span>
           <h1 className="text-2xl sm:text-3xl font-black tracking-tight text-giro-text mt-3">
-            Minhas Carteiras
+            Carteiras de Investimento
           </h1>
           <p className="text-sm text-giro-text-muted mt-1.5 max-w-lg">
             Escolha uma segmentação de investimento para operar seus lançamentos e taxas neste momento.
           </p>
         </div>
 
-        {/* Grid de Carteiras */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
-          {/* Card: Clientes Sem Carteira */}
-          <div
-            onClick={() => onSelectWallet('sem-carteira')}
-            className="nu-card bg-white border border-gray-100 hover:border-giro-primary/50 cursor-pointer shadow-sm hover:shadow-md transition-all flex flex-col justify-between p-6 group h-44 relative overflow-hidden"
-          >
-            <div className="absolute top-0 right-0 w-1.5 h-full bg-amber-500/70" />
-            <div className="flex items-start justify-between">
-              <div className="p-3 bg-amber-50 rounded-xl text-amber-600">
-                <FolderDown className="w-6 h-6 animate-pulse" />
+        {/* Seção: Minhas Carteiras */}
+        <div className="mb-10">
+          <h2 className="text-xs font-black uppercase text-giro-primary tracking-wider mb-4 flex items-center gap-2">
+            <span className="w-1.5 h-3 bg-giro-primary rounded-full"></span>
+            Minhas Carteiras
+          </h2>
+
+          {/* Grid de Carteiras */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
+            {/* Card: Clientes Sem Carteira */}
+            <div
+              onClick={() => onSelectWallet('sem-carteira')}
+              className="nu-card bg-white border border-gray-100 hover:border-giro-primary/50 cursor-pointer shadow-sm hover:shadow-md transition-all flex flex-col justify-between p-6 group h-44 relative overflow-hidden"
+            >
+              <div className="absolute top-0 right-0 w-1.5 h-full bg-amber-500/70" />
+              <div className="flex items-start justify-between">
+                <div className="p-3 bg-amber-50 rounded-xl text-amber-600">
+                  <FolderDown className="w-6 h-6 animate-pulse" />
+                </div>
+                <span className="text-[8px] font-black uppercase tracking-widest text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/50">
+                  Geral
+                </span>
               </div>
-              <span className="text-[8px] font-black uppercase tracking-widest text-amber-700 bg-amber-50 px-2 py-0.5 rounded-full border border-amber-200/50">
-                Geral
-              </span>
+              <div className="mt-4">
+                <h3 className="font-black text-giro-text text-sm leading-tight uppercase group-hover:text-giro-primary transition-colors">
+                  Geral
+                </h3>
+              </div>
+              <div className="flex items-end justify-between border-t border-gray-50 pt-2.5 mt-2.5">
+                <span className="text-[10px] font-bold text-giro-text-muted">
+                  {qtdeSemCarteira} {qtdeSemCarteira === 1 ? 'cliente' : 'clientes'}
+                </span>
+                <span className="text-sm font-black text-amber-600 font-mono">
+                  {formatarMoeda(saldoSemCarteira)}
+                </span>
+              </div>
             </div>
-            <div className="mt-4">
-              <h3 className="font-black text-giro-text text-sm leading-tight uppercase group-hover:text-giro-primary transition-colors">
-                Geral
-              </h3>
-            </div>
-            <div className="flex items-end justify-between border-t border-gray-50 pt-2.5 mt-2.5">
-              <span className="text-[10px] font-bold text-giro-text-muted">
-                {qtdeSemCarteira} {qtdeSemCarteira === 1 ? 'cliente' : 'clientes'}
-              </span>
-              <span className="text-sm font-black text-amber-600 font-mono">
-                {formatarMoeda(saldoSemCarteira)}
-              </span>
-            </div>
-          </div>
 
-          {/* Custom user portfolios */}
-          {carteiras.map(c => {
-            const count = contarDevedoresPorCarteira(todosDevedores, c.id);
-            const totalSaldo = calcularSaldoPorCarteira(todosDevedores, c.id);
-            const isConfirming = idConfirmarExclusao === c.id;
+            {/* Custom user portfolios */}
+            {carteiras.filter(c => c.ownerId === auth.currentUser?.uid).map(c => {
+              const count = contarDevedoresPorCarteira(todosDevedores, c.id);
+              const totalSaldo = calcularSaldoPorCarteira(todosDevedores, c.id);
+              const isConfirming = idConfirmarExclusao === c.id;
 
-            return (
-              <div
-                key={c.id}
-                onClick={() => !isConfirming && onSelectWallet(c.id)}
-                className="nu-card bg-white border border-gray-100 hover:border-giro-primary/50 cursor-pointer shadow-sm hover:shadow-md transition-all flex flex-col justify-between p-6 group h-44 relative"
-              >
-                <div className="flex items-start justify-between">
-                  <div className="p-3 bg-giro-primary/5 rounded-xl text-giro-primary">
-                    <Wallet className="w-6 h-6" />
-                  </div>
+              return (
+                <div
+                  key={c.id}
+                  onClick={() => !isConfirming && onSelectWallet(c.id)}
+                  className="nu-card bg-white border border-gray-100 hover:border-giro-primary/50 cursor-pointer shadow-sm hover:shadow-md transition-all flex flex-col justify-between p-6 group h-44 relative"
+                >
+                  <div className="flex items-start justify-between">
+                    <div className="flex items-center gap-2">
+                      <div className="p-3 bg-purple-50 rounded-xl text-giro-primary">
+                        <Wallet className="w-6 h-6" />
+                      </div>
+                      <span className="text-[8px] font-black uppercase tracking-wider text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100/80">
+                        Minha
+                      </span>
+                    </div>
 
                     <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
                       {/* Botão de Compartilhamento */}
@@ -243,60 +256,116 @@ export function SeletorCarteiras({
                         </button>
                       )}
                     </div>
-                </div>
+                  </div>
 
-                <div className="mt-3">
-                  <h3 className="font-black text-giro-text text-sm leading-tight uppercase group-hover:text-giro-primary transition-colors truncate">
-                    {c.nome}
-                  </h3>
-                </div>
+                  <div className="mt-3">
+                    <h3 className="font-black text-giro-text text-sm leading-tight uppercase group-hover:text-giro-primary transition-colors truncate">
+                      {c.nome}
+                    </h3>
+                  </div>
 
-                <div className="flex items-end justify-between border-t border-gray-50 pt-2.5 mt-2.5">
-                  <span className="text-[10px] font-bold text-giro-text-muted">
-                    {count} {count === 1 ? 'cliente' : 'clientes'}
+                  <div className="flex items-end justify-between border-t border-gray-50 pt-2.5 mt-2.5">
+                    <span className="text-[10px] font-bold text-giro-text-muted">
+                      {count} {count === 1 ? 'cliente' : 'clientes'}
+                    </span>
+                    <span className="text-sm font-black text-giro-primary font-mono">
+                      {formatarMoeda(totalSaldo)}
+                    </span>
+                  </div>
+                </div>
+              );
+            })}
+
+            {/* Form Card: Criar Nova Carteira */}
+            <div className="nu-card bg-gray-50/50 border border-dashed border-gray-300 flex flex-col justify-center p-6 h-44 relative">
+              <form onSubmit={lidarComCriacao} className="flex flex-col h-full justify-between">
+                <div>
+                  <span className="text-[8px] font-black text-giro-primary uppercase tracking-widest flex items-center gap-1">
+                    <Sparkles className="w-2.5 h-2.5 animate-bounce" /> Criar Carteira
                   </span>
-                  <span className="text-sm font-black text-giro-primary font-mono">
-                    {formatarMoeda(totalSaldo)}
-                  </span>
+                  <input
+                    type="text"
+                    required
+                    placeholder="Nome Ex: Consórcios"
+                    value={novaCarteiraNome}
+                    onChange={e => setNovaCarteiraNome(e.target.value)}
+                    disabled={estaCriando}
+                    className="w-full mt-3 p-3 bg-white rounded-xl border border-gray-200 text-xs font-bold outline-none focus:ring-2 focus:ring-giro-primary focus:border-transparent transition-all"
+                  />
                 </div>
-              </div>
-            );
-          })}
 
-          {/* Form Card: Criar Nova Carteira */}
-          <div className="nu-card bg-gray-50/50 border border-dashed border-gray-300 flex flex-col justify-center p-6 h-44 relative">
-            <form onSubmit={lidarComCriacao} className="flex flex-col h-full justify-between">
-              <div>
-                <span className="text-[8px] font-black text-giro-primary uppercase tracking-widest flex items-center gap-1">
-                  <Sparkles className="w-2.5 h-2.5 animate-bounce" /> Criar Carteira
-                </span>
-                <input
-                  type="text"
-                  required
-                  placeholder="Nome Ex: Consórcios"
-                  value={novaCarteiraNome}
-                  onChange={e => setNovaCarteiraNome(e.target.value)}
-                  disabled={estaCriando}
-                  className="w-full mt-3 p-3 bg-white rounded-xl border border-gray-200 text-xs font-bold outline-none focus:ring-2 focus:ring-giro-primary focus:border-transparent transition-all"
-                />
-              </div>
-
-              <button
-                type="submit"
-                disabled={estaCriando || !novaCarteiraNome.trim()}
-                className="w-full flex items-center justify-center gap-2 py-2.5 bg-giro-primary text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all hover:bg-giro-primary-dark active:scale-95 disabled:opacity-50 cursor-pointer"
-              >
-                {estaCriando ? (
-                  <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                ) : (
-                  <>
-                    <Plus className="w-3.5 h-3.5" /> Adicionar
-                  </>
-                )}
-              </button>
-            </form>
+                <button
+                  type="submit"
+                  disabled={estaCriando || !novaCarteiraNome.trim()}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 bg-giro-primary text-white text-[10px] font-black uppercase tracking-wider rounded-xl transition-all hover:bg-giro-primary-dark active:scale-95 disabled:opacity-50 cursor-pointer"
+                >
+                  {estaCriando ? (
+                    <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                  ) : (
+                    <>
+                      <Plus className="w-3.5 h-3.5" /> Adicionar
+                    </>
+                  )}
+                </button>
+              </form>
+            </div>
           </div>
         </div>
+
+        {/* Seção: Compartilhadas Comigo */}
+        {carteiras.some(c => c.ownerId !== auth.currentUser?.uid) && (
+          <div className="mt-12 border-t border-gray-100 pt-8">
+            <h2 className="text-xs font-black uppercase text-indigo-600 tracking-wider mb-4 flex items-center gap-2">
+              <span className="w-1.5 h-3 bg-indigo-600 rounded-full"></span>
+              Compartilhadas Comigo
+            </h2>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5 animate-in fade-in duration-300">
+              {carteiras.filter(c => c.ownerId !== auth.currentUser?.uid).map(c => {
+                const count = contarDevedoresPorCarteira(todosDevedores, c.id);
+                const totalSaldo = calcularSaldoPorCarteira(todosDevedores, c.id);
+
+                return (
+                  <div
+                    key={c.id}
+                    onClick={() => onSelectWallet(c.id)}
+                    className="nu-card bg-white border border-gray-100 hover:border-indigo-600/50 cursor-pointer shadow-sm hover:shadow-md transition-all flex flex-col justify-between p-6 group h-44 relative overflow-hidden animate-in zoom-in-95 duration-255"
+                  >
+                    <div className="absolute top-0 right-0 w-1.5 h-full bg-indigo-500/50" />
+                    
+                    <div className="flex items-start justify-between">
+                      <div className="p-3 bg-indigo-50 rounded-xl text-indigo-600">
+                        <Users className="w-6 h-6" />
+                      </div>
+                      
+                      <span className="text-[8px] font-black uppercase tracking-wider text-indigo-700 bg-indigo-50/70 py-1 px-2.5 rounded-full border border-indigo-100 max-w-[150px] truncate" title={c.ownerEmail || ''}>
+                        Compartilhada
+                      </span>
+                    </div>
+
+                    <div className="mt-2.5">
+                      <h3 className="font-black text-giro-text text-sm leading-tight uppercase group-hover:text-indigo-600 transition-colors truncate">
+                        {c.nome}
+                      </h3>
+                      <p className="text-[9px] font-bold text-giro-text-muted mt-0.5 truncate flex items-center gap-1">
+                        Dono: <span className="text-indigo-600 font-extrabold">{c.ownerEmail || 'Outro usuário'}</span>
+                      </p>
+                    </div>
+
+                    <div className="flex items-end justify-between border-t border-gray-50 pt-2.5 mt-2.5">
+                      <span className="text-[10px] font-bold text-giro-text-muted">
+                        {count} {count === 1 ? 'cliente' : 'clientes'}
+                      </span>
+                      <span className="text-sm font-black text-indigo-600 font-mono">
+                        {formatarMoeda(totalSaldo)}
+                      </span>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
+        )}
       </main>
 
       {/* Modal De Compartilhamento */}
@@ -371,7 +440,7 @@ export function SeletorCarteiras({
           <div className="w-6 h-1 bg-giro-primary rounded-full"></div>
           <span className="text-[10px] font-black uppercase tracking-[0.2em]">Giro Dashboard</span>
         </div>
-        <span className="text-[9px] font-bold">Versão 3.3.0</span>
+        <span className="text-[9px] font-bold">Versão 3.5.0</span>
       </footer>
     </div>
   );

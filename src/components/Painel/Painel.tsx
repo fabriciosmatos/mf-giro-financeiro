@@ -106,6 +106,11 @@ export function Painel({
   });
 
   const carteiraAtivaNome = obterNomeCarteira(carteiraAtivaId, carteiras);
+  const carteiraAtivaObj = carteiraAtivaId && carteiraAtivaId !== 'sem-carteira'
+    ? carteiras.find(c => c.id === carteiraAtivaId)
+    : null;
+  const isCarteiraAtivaPropria = !carteiraAtivaObj || carteiraAtivaObj.ownerId === auth.currentUser?.uid;
+  const carteiraAtivaDonoEmail = carteiraAtivaObj ? carteiraAtivaObj.ownerEmail : undefined;
 
   return (
     <div className="min-h-screen flex flex-col pb-12 text-giro-text bg-gray-50/50">
@@ -117,6 +122,8 @@ export function Painel({
         handleLogout={handleLogout}
         carteiraAtivaNome={carteiraAtivaNome}
         onTrocarCarteira={() => setCarteiraAtivaId(null)}
+        isCarteiraAtivaPropria={isCarteiraAtivaPropria}
+        carteiraAtivaDonoEmail={carteiraAtivaDonoEmail}
       />
 
       {/* Seção Resumo Financeiro da Carteira */}
@@ -407,7 +414,7 @@ export function Painel({
           <div className="w-6 h-1 bg-giro-primary rounded-full"></div>
           <span className="text-[10px] font-black uppercase tracking-[0.2em]">Giro Dashboard</span>
         </div>
-        <span className="text-[9px] font-bold">Versão 3.2.0</span>
+        <span className="text-[9px] font-bold">Versão 3.5.0</span>
       </footer>
     </div>
   );

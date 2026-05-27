@@ -103,7 +103,7 @@ export function TelaLogin({ error, setError }: TelaLoginProps) {
           <div className="w-6 h-1 bg-giro-primary rounded-full"></div>
           <span className="text-[10px] font-black uppercase tracking-[0.2em]">Giro Dashboard</span>
         </div>
-        <span className="text-[9px] font-bold">Versão 3.2.0</span>
+        <span className="text-[9px] font-bold">Versão 3.5.0</span>
       </footer>
     </div>
   );

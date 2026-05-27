@@ -11,6 +11,8 @@ interface CabecalhoPainelProps {
   handleLogout: () => void;
   carteiraAtivaNome?: string;
   onTrocarCarteira?: () => void;
+  isCarteiraAtivaPropria?: boolean;
+  carteiraAtivaDonoEmail?: string;
 }
 
 export function CabecalhoPainel({
@@ -20,7 +22,9 @@ export function CabecalhoPainel({
   setTermoBusca,
   handleLogout,
   carteiraAtivaNome,
-  onTrocarCarteira
+  onTrocarCarteira,
+  isCarteiraAtivaPropria = true,
+  carteiraAtivaDonoEmail
 }: CabecalhoPainelProps) {
   const [confirmarSaida, setConfirmarSaida] = useState(false);
 
@@ -41,10 +45,19 @@ export function CabecalhoPainel({
             title="Clique para trocar de carteira"
           >
             <Wallet className="w-3.5 h-3.5 text-green-300 shrink-0" />
-            <div className="flex flex-col min-w-0 leading-none">
+            <div className="flex flex-col min-w-0 leading-none mr-1">
               <span className="text-[7px] text-white/60 font-black uppercase tracking-widest">Carteira Ativa</span>
-              <span className="text-[10px] font-black uppercase tracking-wider text-white truncate max-w-[120px] sm:max-w-xs">{carteiraAtivaNome}</span>
+              <span className="text-[10px] font-black uppercase tracking-wider text-white truncate max-w-[100px] sm:max-w-xs">{carteiraAtivaNome}</span>
             </div>
+            {isCarteiraAtivaPropria ? (
+              <span className="text-[8px] font-black uppercase tracking-wider bg-emerald-500 text-white rounded px-1.5 py-0.5 shrink-0" title="Você é o proprietário desta carteira">
+                Minha
+              </span>
+            ) : (
+              <span className="text-[8px] font-black uppercase tracking-wider bg-amber-500 text-white rounded px-1.5 py-0.5 shrink-0" title={`Compartilhada por: ${carteiraAtivaDonoEmail || 'outro usuário'}`}>
+                Compartilhada
+              </span>
+            )}
             <span className="text-[9px] font-bold text-green-300 ml-1 hidden sm:inline shrink-0 hover:underline">Alterar</span>
           </button>
         )}
