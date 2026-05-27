@@ -25,7 +25,9 @@ import {
   Share2,
   X,
   Users,
-  Database
+  Database,
+  Pencil,
+  Check
 } from 'lucide-react';
 import { servicoDados } from '../../services/servicoDados';
 import { auth } from '../../lib/firebase';
@@ -36,6 +38,7 @@ interface SeletorCarteirasProps {
   onSelectWallet: (id: string | null) => void;
   onCreateWallet: (nome: string) => Promise<string>;
   onDeleteWallet: (id: string) => Promise<void>;
+  onEditWalletName?: (id: string, novoNome: string) => Promise<void>;
   loading: boolean;
   onLogout: () => void;
   userEmail: string | null;
@@ -48,6 +51,7 @@ export function SeletorCarteiras({
   onSelectWallet,
   onCreateWallet,
   onDeleteWallet,
+  onEditWalletName,
   loading,
   onLogout,
   userEmail,
@@ -69,6 +73,40 @@ export function SeletorCarteiras({
   const [carteiraEmConfiguracaoCompartilhamento, setCarteiraEmConfiguracaoCompartilhamento] = useState<Carteira | null>(null);
   const [novoEmailCompartilhar, setNovoEmailCompartilhar] = useState('');
   const [processandoCompartilhamento, setProcessandoCompartilhamento] = useState(false);
+
+  const [idCarteiraEdicao, setIdCarteiraEdicao] = useState<string | null>(null);
+  const [nomeCarteiraEdicao, setNomeCarteiraEdicao] = useState('');
+  const [processandoEdicao, setProcessandoEdicao] = useState(false);
+
+  const iniciarEdicao = (c: Carteira, e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIdCarteiraEdicao(c.id);
+    setNomeCarteiraEdicao(c.nome);
+  };
+
+  const cancelarEdicao = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setIdCarteiraEdicao(null);
+    setNomeCarteiraEdicao('');
+  };
+
+  const salvarEdicao = async (id: string, e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!nomeCarteiraEdicao.trim() || !onEditWalletName) return;
+    setProcessandoEdicao(true);
+    try {
+      await onEditWalletName(id, nomeCarteiraEdicao.trim());
+      setIdCarteiraEdicao(null);
+      setNomeCarteiraEdicao('');
+      if (refreshCarteiras) {
+        refreshCarteiras();
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setProcessandoEdicao(false);
+    }
+  };
 
   const lidarComCompartilhar = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -202,31 +240,38 @@ export function SeletorCarteiras({
               return (
                 <div
                   key={c.id}
-                  onClick={() => !isConfirming && onSelectWallet(c.id)}
+                  onClick={() => !isConfirming && idCarteiraEdicao !== c.id && onSelectWallet(c.id)}
                   className="nu-card bg-white border border-gray-100 hover:border-giro-primary/50 cursor-pointer shadow-sm hover:shadow-md transition-all flex flex-col justify-between p-6 group h-44 relative"
                 >
                   <div className="flex items-start justify-between">
-                    <div className="flex items-center gap-2">
-                      <div className="p-3 bg-purple-50 rounded-xl text-giro-primary">
-                        <Wallet className="w-6 h-6" />
-                      </div>
-                      <span className="text-[8px] font-black uppercase tracking-wider text-purple-700 bg-purple-50 px-2 py-0.5 rounded-full border border-purple-100/80">
-                        Minha
-                      </span>
+                    <div className="p-3 bg-giro-primary/5 rounded-xl text-giro-primary">
+                      <Wallet className="w-6 h-6" />
                     </div>
 
                     <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
                       {/* Botão de Compartilhamento */}
-                      <button
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setCarteiraEmConfiguracaoCompartilhamento(c);
-                        }}
-                        className="p-1 px-2 text-[8px] font-black uppercase text-giro-primary bg-giro-primary/5 hover:bg-giro-primary/10 rounded-md transition-all cursor-pointer inline-flex items-center gap-1 mr-1"
-                        title="Compartilhar Carteira"
-                      >
-                        Compartilhar
-                      </button>
+                      {idCarteiraEdicao !== c.id && (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setCarteiraEmConfiguracaoCompartilhamento(c);
+                          }}
+                          className="p-1 px-2 text-[8px] font-black uppercase text-giro-primary bg-giro-primary/5 hover:bg-giro-primary/10 rounded-md transition-all cursor-pointer inline-flex items-center gap-1 mr-1"
+                          title="Compartilhar Carteira"
+                        >
+                          Compartilhar
+                        </button>
+                      )}
+
+                      {idCarteiraEdicao !== c.id && (
+                        <button
+                          onClick={(e) => iniciarEdicao(c, e)}
+                          className="p-1.5 text-giro-text-muted hover:text-giro-primary hover:bg-giro-primary/5 rounded-lg transition-all cursor-pointer mr-0.5"
+                          title="Editar Nome"
+                        >
+                          <Pencil className="w-3.5 h-3.5" />
+                        </button>
+                      )}
 
                       {isConfirming ? (
                         <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
@@ -244,25 +289,76 @@ export function SeletorCarteiras({
                           </button>
                         </div>
                       ) : (
-                        <button
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setIdConfirmarExclusao(c.id);
-                          }}
-                          className="p-1.5 text-giro-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
-                          title="Excluir Carteira"
-                        >
-                          <Trash2 className="w-3.5 h-3.5" />
-                        </button>
+                        idCarteiraEdicao !== c.id && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setIdConfirmarExclusao(c.id);
+                            }}
+                            className="p-1.5 text-giro-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                            title="Excluir Carteira"
+                          >
+                            <Trash2 className="w-3.5 h-3.5" />
+                          </button>
+                        )
                       )}
                     </div>
                   </div>
 
-                  <div className="mt-3">
-                    <h3 className="font-black text-giro-text text-sm leading-tight uppercase group-hover:text-giro-primary transition-colors truncate">
-                      {c.nome}
-                    </h3>
-                  </div>
+                  {idCarteiraEdicao === c.id ? (
+                    <div className="mt-3 flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                      <input
+                        type="text"
+                        required
+                        value={nomeCarteiraEdicao}
+                        onChange={e => setNomeCarteiraEdicao(e.target.value)}
+                        className="flex-1 p-1 bg-gray-50/50 border border-gray-200 rounded-md text-xs font-bold outline-none focus:ring-2 focus:ring-giro-primary focus:border-transparent transition-all"
+                        placeholder="Nome da carteira"
+                        disabled={processandoEdicao}
+                        autoFocus
+                        onKeyDown={(ev) => {
+                          if (ev.key === 'Enter') {
+                            salvarEdicao(c.id, ev as any);
+                          } else if (ev.key === 'Escape') {
+                            cancelarEdicao(ev as any);
+                          }
+                        }}
+                      />
+                      <button
+                        onClick={(ev) => salvarEdicao(c.id, ev)}
+                        disabled={processandoEdicao || !nomeCarteiraEdicao.trim()}
+                        className="p-1.5 bg-green-600 text-white rounded-md hover:bg-green-700 transition-colors cursor-pointer disabled:opacity-50 shrink-0"
+                        title="Salvar"
+                      >
+                        {processandoEdicao ? (
+                          <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                        ) : (
+                          <Check className="w-3.5 h-3.5" />
+                        )}
+                      </button>
+                      <button
+                        onClick={cancelarEdicao}
+                        disabled={processandoEdicao}
+                        className="p-1.5 bg-gray-100 text-giro-text rounded-md hover:bg-gray-200 transition-colors cursor-pointer shrink-0"
+                        title="Cancelar"
+                      >
+                        <X className="w-3.5 h-3.5" />
+                      </button>
+                    </div>
+                  ) : (
+                    <div className="mt-3 group/title flex items-center justify-between">
+                      <h3 className="font-black text-giro-text text-sm leading-tight uppercase group-hover:text-giro-primary transition-colors truncate">
+                        {c.nome}
+                      </h3>
+                      <button
+                        onClick={(e) => iniciarEdicao(c, e)}
+                        className="opacity-0 group-hover/title:opacity-100 p-1 text-giro-text-muted hover:text-giro-primary hover:bg-giro-primary/5 rounded-md transition-all cursor-pointer"
+                        title="Editar Nome"
+                      >
+                        <Pencil className="w-3 h-3" />
+                      </button>
+                    </div>
+                  )}
 
                   <div className="flex items-end justify-between border-t border-gray-50 pt-2.5 mt-2.5">
                     <span className="text-[10px] font-bold text-giro-text-muted">
@@ -440,7 +536,7 @@ export function SeletorCarteiras({
           <div className="w-6 h-1 bg-giro-primary rounded-full"></div>
           <span className="text-[10px] font-black uppercase tracking-[0.2em]">Giro Dashboard</span>
         </div>
-        <span className="text-[9px] font-bold">Versão 3.5.0</span>
+        <span className="text-[9px] font-bold">Versão 3.6.0</span>
       </footer>
     </div>
   );

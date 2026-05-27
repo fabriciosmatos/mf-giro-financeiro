@@ -26,6 +26,7 @@ export default function App() {
     loadingCarteiras,
     criarCarteira,
     excluirCarteira,
+    editarNomeCarteira,
     totais,
     termoBusca,
     setTermoBusca,
@@ -69,6 +70,7 @@ export default function App() {
         onSelectWallet={(id) => setCarteiraAtivaId(id)}
         onCreateWallet={criarCarteira}
         onDeleteWallet={excluirCarteira}
+        onEditWalletName={editarNomeCarteira}
         loading={loadingCarteiras}
         onLogout={handleLogout}
         userEmail={user.email}

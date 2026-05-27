@@ -49,11 +49,7 @@ export function CabecalhoPainel({
               <span className="text-[7px] text-white/60 font-black uppercase tracking-widest">Carteira Ativa</span>
               <span className="text-[10px] font-black uppercase tracking-wider text-white truncate max-w-[100px] sm:max-w-xs">{carteiraAtivaNome}</span>
             </div>
-            {isCarteiraAtivaPropria ? (
-              <span className="text-[8px] font-black uppercase tracking-wider bg-emerald-500 text-white rounded px-1.5 py-0.5 shrink-0" title="Você é o proprietário desta carteira">
-                Minha
-              </span>
-            ) : (
+            {!isCarteiraAtivaPropria && (
               <span className="text-[8px] font-black uppercase tracking-wider bg-amber-500 text-white rounded px-1.5 py-0.5 shrink-0" title={`Compartilhada por: ${carteiraAtivaDonoEmail || 'outro usuário'}`}>
                 Compartilhada
               </span>

@@ -114,5 +114,15 @@ export const servicoCarteiras = {
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, path);
     }
+  },
+
+  async editarNomeCarteira(id: string, novoNome: string): Promise<void> {
+    const path = `carteiras/${id}`;
+    try {
+      const docRef = doc(db, 'carteiras', id);
+      await updateDoc(docRef, { nome: novoNome });
+    } catch (error) {
+      handleFirestoreError(error, OperationType.UPDATE, path);
+    }
   }
 };

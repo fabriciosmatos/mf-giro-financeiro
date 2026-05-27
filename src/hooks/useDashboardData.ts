@@ -118,6 +118,19 @@ export function useDashboardData() {
     }
   }
 
+  async function editarNomeCarteira(id: string, novoNome: string) {
+    setLoadingCarteiras(true);
+    try {
+      await servicoDados.editarNomeCarteira(id, novoNome);
+      const listaCarteiras = await servicoDados.listarCarteiras();
+      setCarteiras(listaCarteiras);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingCarteiras(false);
+    }
+  }
+
   const totais = useMemo(() => {
     // Calcula totais aplicados apenas aos devedores da carteira ativa
     const devedoresCarteira = devedores.filter(d => {
@@ -193,6 +206,7 @@ export function useDashboardData() {
     loadingCarteiras,
     criarCarteira,
     excluirCarteira,
+    editarNomeCarteira,
     totais,
     termoBusca,
     setTermoBusca,
