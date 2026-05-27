@@ -12,6 +12,14 @@ export interface Devedor {
   ultimoPagamento?: any;
   endereco?: string;
   observacoes?: string;
+  carteiraId?: string | null;
+}
+
+export interface Carteira {
+  id: string;
+  nome: string;
+  ownerId: string;
+  dataCriacao: any;
 }
 
 export type TipoTransacao = 'PAGAMENTO' | 'APORTE';

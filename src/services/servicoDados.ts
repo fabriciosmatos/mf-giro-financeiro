@@ -13,7 +13,7 @@ import {
   serverTimestamp
 } from 'firebase/firestore';
 import { db, auth } from '../lib/firebase';
-import { Devedor, Historico } from '../types';
+import { Devedor, Historico, Carteira } from '../types';
 
 enum OperationType {
   CREATE = 'create',
@@ -150,6 +150,48 @@ export const servicoDados = {
     } catch (error) {
       handleFirestoreError(error, OperationType.LIST, path);
       return [];
+    }
+  },
+
+  async criarCarteira(nome: string): Promise<string> {
+    const path = 'carteiras';
+    try {
+      const docRef = await addDoc(collection(db, path), {
+        nome,
+        ownerId: auth.currentUser?.uid,
+        dataCriacao: serverTimestamp()
+      });
+      return docRef.id;
+    } catch (error) {
+      handleFirestoreError(error, OperationType.CREATE, path);
+      return '';
+    }
+  },
+
+  async listarCarteiras(): Promise<Carteira[]> {
+    const path = 'carteiras';
+    try {
+      if (!auth.currentUser) return [];
+      const q = query(
+        collection(db, path),
+        where('ownerId', '==', auth.currentUser.uid),
+        orderBy('dataCriacao', 'asc')
+      );
+      const snapshot = await getDocs(q);
+      return snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as Carteira));
+    } catch (error) {
+      handleFirestoreError(error, OperationType.LIST, path);
+      return [];
+    }
+  },
+
+  async excluirCarteira(id: string): Promise<void> {
+    const path = `carteiras/${id}`;
+    try {
+      const docRef = doc(db, 'carteiras', id);
+      await deleteDoc(docRef);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, path);
     }
   }
 };

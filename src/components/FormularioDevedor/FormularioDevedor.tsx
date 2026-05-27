@@ -1,64 +1,61 @@
-import React, { useState } from 'react';
-import { servicoDados } from '../services/servicoDados';
+/**
+ * Componente Visual FormularioDevedor.
+ * Mantém apenas o design JSX e interage puramente com o hook useFormularioDevedor.
+ * Todas as nomenclaturas, termos e textos estão em português e os nomes de arquivos também.
+ */
 
-interface FormDevedorProps {
+import React from 'react';
+import { Devedor, Carteira } from '../../types';
+import { useFormularioDevedor } from './useFormularioDevedor';
+
+interface FormularioDevedorProps {
   onSuccess: () => void;
   devedorParaEditar?: Devedor;
+  carteiras: Carteira[];
+  carteiraAtivaId?: string | null;
 }
 
-export default function FormDevedor({ onSuccess, devedorParaEditar }: FormDevedorProps) {
-  const [nome, setNome] = useState(devedorParaEditar?.nomeCompleto || '');
-  const [whats, setWhats] = useState(devedorParaEditar?.whatsapp || '');
-  const [taxa, setTaxa] = useState(devedorParaEditar?.taxaJurosMensal.toString() || '10');
-  const [saldo, setSaldo] = useState(devedorParaEditar?.saldoDevedorAtual.toString() || '');
-  const [endereco, setEndereco] = useState(devedorParaEditar?.endereco || '');
-  const [observacoes, setObservacoes] = useState(devedorParaEditar?.observacoes || '');
-  const [dataInicio, setDataInicio] = useState(new Date().toISOString().split('T')[0]);
-  const [diaVencimento, setDiaVencimento] = useState(devedorParaEditar?.diaVencimento?.toString() || new Date().getDate().toString());
-  const [loading, setLoading] = useState(false);
-
-  const handleSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoading(true);
-    try {
-      if (devedorParaEditar?.id) {
-        await servicoDados.atualizarDevedor(devedorParaEditar.id, {
-          nomeCompleto: nome,
-          whatsapp: whats,
-          taxaJurosMensal: Number(taxa),
-          diaVencimento: Number(diaVencimento),
-          endereco: endereco || '',
-          observacoes: observacoes || '',
-        });
-      } else {
-        await servicoDados.criarDevedor({
-          nomeCompleto: nome,
-          whatsapp: whats,
-          taxaJurosMensal: Number(taxa),
-          saldoDevedorAtual: Number(saldo),
-          diaVencimento: Number(diaVencimento),
-          dataCriacao: new Date(dataInicio + 'T12:00:00'),
-          endereco: endereco || '',
-          observacoes: observacoes || '',
-          ownerId: '', 
-        });
-      }
-      onSuccess();
-    } catch (e) {
-      alert('Erro ao salvar devedor');
-    } finally {
-      setLoading(false);
-    }
-  };
+export function FormularioDevedor({
+  onSuccess,
+  devedorParaEditar,
+  carteiras,
+  carteiraAtivaId,
+}: FormularioDevedorProps) {
+  const {
+    nomeCompleto,
+    setNomeCompleto,
+    whatsapp,
+    setWhatsapp,
+    taxaJuros,
+    setTaxaJuros,
+    saldoDevedor,
+    setSaldoDevedor,
+    endereco,
+    setEndereco,
+    observacoes,
+    setObservacoes,
+    dataInicio,
+    setDataInicio,
+    diaVencimento,
+    setDiaVencimento,
+    carteiraId,
+    setCarteiraId,
+    carregando,
+    lidarComEnvio,
+  } = useFormularioDevedor({
+    onSuccess,
+    devedorParaEditar,
+    carteiraAtivaId,
+  });
 
   return (
-    <form onSubmit={handleSubmit} className="flex flex-col gap-6">
+    <form onSubmit={lidarComEnvio} className="flex flex-col gap-6">
       <div>
         <label className="block text-sm font-semibold mb-2 tracking-tight">Nome Completo</label>
         <input 
           type="text" 
-          value={nome}
-          onChange={e => setNome(e.target.value)}
+          value={nomeCompleto}
+          onChange={e => setNomeCompleto(e.target.value)}
           className="w-full p-4 bg-giro-bg rounded-2xl border-0 focus:ring-2 focus:ring-giro-primary"
           placeholder="Ex: João da Silva"
           required
@@ -70,8 +67,8 @@ export default function FormDevedor({ onSuccess, devedorParaEditar }: FormDevedo
           <label className="block text-sm font-semibold mb-2">WhatsApp</label>
           <input 
             type="tel" 
-            value={whats}
-            onChange={e => setWhats(e.target.value)}
+            value={whatsapp}
+            onChange={e => setWhatsapp(e.target.value)}
             className="w-full p-4 bg-giro-bg rounded-2xl border-0 focus:ring-2 focus:ring-giro-primary"
             placeholder="11999999999"
             required
@@ -81,8 +78,8 @@ export default function FormDevedor({ onSuccess, devedorParaEditar }: FormDevedo
           <label className="block text-sm font-semibold mb-2">Taxa Juros (%)</label>
           <input 
             type="number" 
-            value={taxa}
-            onChange={e => setTaxa(e.target.value)}
+            value={taxaJuros}
+            onChange={e => setTaxaJuros(e.target.value)}
             className="w-full p-4 bg-giro-bg rounded-2xl border-0 focus:ring-2 focus:ring-giro-primary"
             required
           />
@@ -122,14 +119,28 @@ export default function FormDevedor({ onSuccess, devedorParaEditar }: FormDevedo
           <input 
             type="number" 
             step="0.01"
-            value={saldo}
-            onChange={e => setSaldo(e.target.value)}
+            value={saldoDevedor}
+            onChange={e => setSaldoDevedor(e.target.value)}
             className="w-full text-xl font-bold p-4 bg-giro-bg rounded-2xl border-0 focus:ring-2 focus:ring-giro-primary font-mono"
             placeholder="0,00"
             required
           />
         </div>
       )}
+
+      <div>
+        <label className="block text-sm font-semibold mb-2 tracking-tight">Carteira (Segmentação)</label>
+        <select
+          value={carteiraId}
+          onChange={e => setCarteiraId(e.target.value)}
+          className="w-full p-4 bg-giro-bg rounded-2xl border-0 focus:ring-2 focus:ring-giro-primary font-bold text-sm text-giro-text"
+        >
+          <option value="">Geral</option>
+          {carteiras.map(c => (
+            <option key={c.id} value={c.id}>{c.nome}</option>
+          ))}
+        </select>
+      </div>
 
       <div>
         <label className="block text-sm font-semibold mb-2 tracking-tight">Endereço (Opcional)</label>
@@ -151,11 +162,9 @@ export default function FormDevedor({ onSuccess, devedorParaEditar }: FormDevedo
         />
       </div>
 
-      <button disabled={loading} type="submit" className="nu-button-primary w-full mt-2">
-        {loading ? 'Salvando...' : devedorParaEditar ? 'Atualizar Cadastro' : 'Salvar Novo Devedor'}
+      <button disabled={carregando} type="submit" className="nu-button-primary w-full mt-2 cursor-pointer">
+        {carregando ? 'Salvando...' : devedorParaEditar ? 'Atualizar Cadastro' : 'Salvar Novo Devedor'}
       </button>
     </form>
   );
 }
-
-import { Devedor } from '../types';

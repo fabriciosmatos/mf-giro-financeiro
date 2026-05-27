@@ -43,6 +43,12 @@ service cloud.firestore {
              data.ownerId == request.auth.uid;
     }
 
+    function isValidCarteira(data) {
+      return data.keys().hasAll(['nome', 'ownerId', 'dataCriacao']) &&
+             data.nome is string && data.nome.size() <= 100 &&
+             data.ownerId == request.auth.uid;
+    }
+
     match /devedores/{devedorId} {
       allow create: if isSignedIn() && isValidId(devedorId) && 
                       isValidDevedor(request.resource.data);
@@ -61,6 +67,17 @@ service cloud.firestore {
         allow get: if isOwner(request.auth.uid); // This needs to be refined if ownerId isn't on doc
         allow list: if isSignedIn() && (resource == null || resource.data.ownerId == request.auth.uid);
       }
+    }
+
+    match /carteiras/{carteiraId} {
+      allow create: if isSignedIn() && isValidId(carteiraId) && isValidCarteira(request.resource.data);
+      allow get: if isSignedIn() && (resource.data.ownerId == request.auth.uid);
+      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
+      allow update: if isOwner(resource.data.ownerId) && 
+                      isValidCarteira(request.resource.data) &&
+                      request.resource.data.ownerId == resource.data.ownerId &&
+                      request.resource.data.dataCriacao == resource.data.dataCriacao;
+      allow delete: if isOwner(resource.data.ownerId);
     }
 
     match /autorizacoes/{autorizacaoId} {

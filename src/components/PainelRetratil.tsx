@@ -3,14 +3,14 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X } from 'lucide-react';
 import { cn } from '../lib/utils';
 
-interface BottomSheetProps {
+interface PainelRetratilProps {
   isOpen: boolean;
   onClose: () => void;
   title: string;
   children: React.ReactNode;
 }
 
-export default function BottomSheet({ isOpen, onClose, title, children }: BottomSheetProps) {
+export default function PainelRetratil({ isOpen, onClose, title, children }: PainelRetratilProps) {
   return (
     <AnimatePresence>
       {isOpen && (

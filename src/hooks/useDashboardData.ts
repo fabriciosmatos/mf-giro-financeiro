@@ -2,7 +2,7 @@ import { useState, useEffect, useMemo } from 'react';
 import { onAuthStateChanged, User, signOut } from 'firebase/auth';
 import { auth, verificarAutorizacao } from '../lib/firebase';
 import { servicoDados } from '../services/servicoDados';
-import { Devedor } from '../types';
+import { Devedor, Carteira } from '../types';
 import { getProximoVencimento, getInfoStatus, getDataOrdenacao } from '../lib/financeiro/statusLogic';
 
 export type StatusDebito = 'ATRASO' | 'DIA' | 'QUITADO';
@@ -13,10 +13,29 @@ export function useDashboardData() {
   const [authError, setAuthError] = useState<string | null>(null);
   const [isVerifying, setIsVerifying] = useState(false);
   const [devedores, setDevedores] = useState<Devedor[]>([]);
+  const [carteiras, setCarteiras] = useState<Carteira[]>([]);
+  const [carteiraAtivaId, setCarteiraAtivaIdState] = useState<string | null>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem('giro_carteira_ativa_id');
+    }
+    return null;
+  });
   const [loading, setLoading] = useState(true);
+  const [loadingCarteiras, setLoadingCarteiras] = useState(false);
   const [termoBusca, setTermoBusca] = useState('');
   const [statusSelecionados, setStatusSelecionados] = useState<StatusDebito[]>(['ATRASO', 'DIA']);
   const [ordenacao, setOrdenacao] = useState<TipoOrdenacao>('PRIORIDADE');
+
+  const setCarteiraAtivaId = (id: string | null) => {
+    setCarteiraAtivaIdState(id);
+    if (typeof window !== 'undefined') {
+      if (id) {
+        localStorage.setItem('giro_carteira_ativa_id', id);
+      } else {
+        localStorage.removeItem('giro_carteira_ativa_id');
+      }
+    }
+  };
 
   useEffect(() => {
     const unsub = onAuthStateChanged(auth, async (u) => {
@@ -44,6 +63,7 @@ export function useDashboardData() {
       } else {
         setUser(null);
         setDevedores([]);
+        setCarteiras([]);
         setLoading(false);
       }
     });
@@ -53,8 +73,13 @@ export function useDashboardData() {
   async function carregarDados() {
     setLoading(true);
     try {
+      // Carregar Devedores (clientes)
       const dados = await servicoDados.listarDevedores();
       setDevedores(dados);
+
+      // Carregar Carteiras (segmentações)
+      const listaCarteiras = await servicoDados.listarCarteiras();
+      setCarteiras(listaCarteiras);
     } catch (e) {
       console.error(e);
     } finally {
@@ -62,20 +87,69 @@ export function useDashboardData() {
     }
   }
 
+  async function criarCarteira(nome: string) {
+    setLoadingCarteiras(true);
+    try {
+      const id = await servicoDados.criarCarteira(nome);
+      const listaCarteiras = await servicoDados.listarCarteiras();
+      setCarteiras(listaCarteiras);
+      return id;
+    } catch (e) {
+      console.error(e);
+      throw e;
+    } finally {
+      setLoadingCarteiras(false);
+    }
+  }
+
+  async function excluirCarteira(id: string) {
+    setLoadingCarteiras(true);
+    try {
+      await servicoDados.excluirCarteira(id);
+      if (carteiraAtivaId === id) {
+        setCarteiraAtivaId(null);
+      }
+      const listaCarteiras = await servicoDados.listarCarteiras();
+      setCarteiras(listaCarteiras);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setLoadingCarteiras(false);
+    }
+  }
+
   const totais = useMemo(() => {
-    const capitalNaRua = devedores.reduce((acc, d) => acc + d.saldoDevedorAtual, 0);
-    const lucroProjetado = devedores.reduce((acc, d) => acc + (d.saldoDevedorAtual * (d.taxaJurosMensal / 100)), 0);
-    const lucroRealizado = devedores.reduce((acc, d) => acc + (d.totalLucroGerado || 0), 0);
+    // Calcula totais aplicados apenas aos devedores da carteira ativa
+    const devedoresCarteira = devedores.filter(d => {
+      if (carteiraAtivaId === 'sem-carteira') {
+        return !d.carteiraId;
+      }
+      return d.carteiraId === carteiraAtivaId;
+    });
+
+    const capitalNaRua = devedoresCarteira.reduce((acc, d) => acc + d.saldoDevedorAtual, 0);
+    const lucroProjetado = devedoresCarteira.reduce((acc, d) => acc + (d.saldoDevedorAtual * (d.taxaJurosMensal / 100)), 0);
+    const lucroRealizado = devedoresCarteira.reduce((acc, d) => acc + (d.totalLucroGerado || 0), 0);
     return { capitalNaRua, lucroProjetado, lucroRealizado };
-  }, [devedores]);
+  }, [devedores, carteiraAtivaId]);
 
   const devedoresFiltrados = useMemo(() => {
-    // Filtro inicial por termo de busca
-    let filtrados = devedores.filter(d => 
+    // 1. Filtrar pela carteira ativa
+    let filtrados = devedores;
+    if (carteiraAtivaId) {
+      if (carteiraAtivaId === 'sem-carteira') {
+        filtrados = filtrados.filter(d => !d.carteiraId);
+      } else {
+        filtrados = filtrados.filter(d => d.carteiraId === carteiraAtivaId);
+      }
+    }
+
+    // 2. Filtro de pesquisa textual
+    filtrados = filtrados.filter(d => 
       d.nomeCompleto.toLowerCase().includes(termoBusca.toLowerCase())
     );
 
-    // Depois filtramos pelos status selecionados nos checkboxes
+    // 3. Filtro por status selecionados
     filtrados = filtrados.filter(d => {
       const info = getInfoStatus(d);
       let status: StatusDebito;
@@ -93,20 +167,18 @@ export function useDashboardData() {
       if (ordenacao === 'VALOR_ALTO') return b.saldoDevedorAtual - a.saldoDevedorAtual;
       if (ordenacao === 'VALOR_BAIXO') return a.saldoDevedorAtual - b.saldoDevedorAtual;
       
-      // PRIORIDADE: Pela data de ordenação (atrasados têm datas passadas, quitados têm Infinity)
       const dateA = getDataOrdenacao(a);
       const dateB = getDataOrdenacao(b);
       
       if (dateA !== dateB) return dateA - dateB;
       
-      // Se mesma data, sort by priority (atrasado > hoje > etc)
       const infoA = getInfoStatus(a);
       const infoB = getInfoStatus(b);
       if (infoA.prioridade !== infoB.prioridade) return infoA.prioridade - infoB.prioridade;
       
       return b.saldoDevedorAtual - a.saldoDevedorAtual;
     });
-  }, [devedores, termoBusca, statusSelecionados, ordenacao]);
+  }, [devedores, carteiraAtivaId, termoBusca, statusSelecionados, ordenacao]);
 
   return {
     user,
@@ -114,6 +186,13 @@ export function useDashboardData() {
     authError,
     setAuthError,
     devedores: devedoresFiltrados,
+    todosDevedores: devedores,
+    carteiras,
+    carteiraAtivaId,
+    setCarteiraAtivaId,
+    loadingCarteiras,
+    criarCarteira,
+    excluirCarteira,
     totais,
     termoBusca,
     setTermoBusca,

@@ -1,29 +1,20 @@
-import React, { useState, useEffect } from 'react';
-import { Devedor, Historico } from '../types';
-import { formatarMoeda, formatarData, cn } from '../lib/utils';
+import React from 'react';
+import { Devedor } from '../../types';
+import { formatarMoeda, formatarData, cn } from '../../lib/utils';
 import { Download } from 'lucide-react';
-import { servicoDados } from '../services/servicoDados';
-import { gerarCSVHistorico } from '../services/servicoExportacao';
+import { gerarCSVHistorico } from '../../services/servicoExportacao';
+import { useHistoricoLista } from './useHistoricoLista';
 
 interface HistoricoListaProps {
   devedor: Devedor;
 }
 
-export default function HistoricoLista({ devedor }: HistoricoListaProps) {
-  const [historico, setHistorico] = useState<Historico[]>([]);
-  const [loading, setLoading] = useState(true);
+export function HistoricoLista({ devedor }: HistoricoListaProps) {
+  const { historico, carregando } = useHistoricoLista({ devedor });
 
-  useEffect(() => {
-    async function carregar() {
-      if (!devedor.id) return;
-      const dados = await servicoDados.listarHistorico(devedor.id);
-      setHistorico(dados);
-      setLoading(false);
-    }
-    carregar();
-  }, [devedor.id]);
-
-  if (loading) return <div className="p-10 text-center text-giro-text-muted">Carregando histórico...</div>;
+  if (carregando) {
+    return <div className="p-10 text-center text-giro-text-muted">Carregando histórico...</div>;
+  }
 
   return (
     <div className="flex flex-col gap-4">
@@ -31,7 +22,7 @@ export default function HistoricoLista({ devedor }: HistoricoListaProps) {
         <span className="text-sm font-semibold text-giro-text-muted">{historico.length} lançamentos</span>
         <button 
           onClick={() => gerarCSVHistorico(devedor.nomeCompleto, historico)}
-          className="flex items-center gap-1 text-sm text-giro-primary font-semibold hover:underline"
+          className="flex items-center gap-1 text-sm text-giro-primary font-semibold hover:underline cursor-pointer"
         >
           <Download className="w-4 h-4" /> Exportar CSV
         </button>
@@ -44,14 +35,14 @@ export default function HistoricoLista({ devedor }: HistoricoListaProps) {
           historico.map(h => {
              const dataObj = h.data?.toDate ? h.data.toDate() : new Date(h.data);
              return (
-              <div key={h.id} className="border-b border-gray-100 pb-3 last:border-0">
+              <div key={h.id} className="border-b border-gray-100 pb-3 last:border-0 text-giro-text">
                 <div className="flex justify-between items-start mb-1">
                   <div>
                     <span className={cn(
                       "text-[10px] font-bold uppercase px-2 py-0.5 rounded-full mr-2",
                       h.tipo === 'PAGAMENTO' ? "bg-green-100 text-green-700" : "bg-blue-100 text-blue-700"
                     )}>
-                      {h.tipo}
+                      {h.tipo === 'PAGAMENTO' ? 'Recebimento' : 'Aporte'}
                     </span>
                     <span className="text-xs text-giro-text-muted">{formatarData(dataObj)}</span>
                   </div>
