@@ -2,5 +2,7 @@
   "name": "Giro - Gestão de Capital",
   "description": "SaaS minimalista para gestão de capital e devedores com foco em mobile-first e design estilo Nu.",
   "requestFramePermissions": [],
-  "majorCapabilities": []
+  "majorCapabilities": [
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
+  ]
 }

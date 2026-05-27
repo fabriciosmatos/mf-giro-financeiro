@@ -72,6 +72,7 @@ export default function App() {
         loading={loadingCarteiras}
         onLogout={handleLogout}
         userEmail={user.email}
+        refreshCarteiras={refresh}
       />
     );
   }

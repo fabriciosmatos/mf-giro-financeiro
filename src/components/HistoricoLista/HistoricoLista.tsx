@@ -59,6 +59,11 @@ export function HistoricoLista({ devedor }: HistoricoListaProps) {
                   </div>
                 )}
                 <div className="text-sm text-giro-text-muted">{h.observacao || 'Sem observação'}</div>
+                {(h.criadoPorNome || h.criadoPorEmail) && (
+                  <div className="text-[9px] text-giro-primary font-bold mt-0.5">
+                    Operado por: {h.criadoPorNome || h.criadoPorEmail}
+                  </div>
+                )}
                 <div className="text-[10px] text-right text-gray-400">Saldo: {formatarMoeda(h.saldoRestante)}</div>
               </div>
             );

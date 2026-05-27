@@ -1,7 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // Default deny
+    // Default deny catch-all
     match /{document=**} {
       allow read, write: if false;
     }
@@ -18,7 +18,23 @@ service cloud.firestore {
       return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$');
     }
 
-    function isValidDevedor(data) {
+    function hasAccessToCarteira(carteiraId) {
+      return carteiraId != null &&
+             (
+               get(/databases/$(database)/documents/carteiras/$(carteiraId)).data.ownerId == request.auth.uid ||
+               (
+                 'emailsCompartilhados' in get(/databases/$(database)/documents/carteiras/$(carteiraId)).data &&
+                 request.auth.token.email in get(/databases/$(database)/documents/carteiras/$(carteiraId)).data.emailsCompartilhados
+               )
+             );
+    }
+
+    function hasAccessToDevedor(devedorData) {
+      return devedorData.ownerId == request.auth.uid || 
+             ('carteiraId' in devedorData && hasAccessToCarteira(devedorData.carteiraId));
+    }
+
+    function isValidDevedorShape(data) {
       return data.keys().hasAll(['nomeCompleto', 'taxaJurosMensal', 'saldoDevedorAtual', 'ownerId', 'totalLucroGerado', 'dataCriacao']) &&
              data.nomeCompleto is string && data.nomeCompleto.size() <= 200 &&
              (!('whatsapp' in data) || (data.whatsapp is string && data.whatsapp.size() <= 20)) &&
@@ -29,7 +45,11 @@ service cloud.firestore {
              (!('ultimoPagamento' in data) || (data.ultimoPagamento == null || data.ultimoPagamento is timestamp)) &&
              (!('endereco' in data) || (data.endereco == null || (data.endereco is string && data.endereco.size() <= 500))) &&
              (!('observacoes' in data) || (data.observacoes == null || (data.observacoes is string && data.observacoes.size() <= 1000))) &&
-             data.ownerId == request.auth.uid;
+             (!('criadoPorEmail' in data) || data.criadoPorEmail == null || data.criadoPorEmail is string) &&
+             (!('criadoPorNome' in data) || data.criadoPorNome == null || data.criadoPorNome is string) &&
+             (!('ultimaAlteracaoPorEmail' in data) || data.ultimaAlteracaoPorEmail == null || data.ultimaAlteracaoPorEmail is string) &&
+             (!('ultimaAlteracaoPorNome' in data) || data.ultimaAlteracaoPorNome == null || data.ultimaAlteracaoPorNome is string) &&
+             (!('ultimaAlteracaoData' in data) || data.ultimaAlteracaoData == null || data.ultimaAlteracaoData is timestamp);
     }
 
     function isValidHistorico(data) {
@@ -40,48 +60,78 @@ service cloud.firestore {
              data.valorJuros is number &&
              data.valorAmortizado is number &&
              (data.observacao == null || (data.observacao is string && data.observacao.size() <= 1000)) &&
+             (!('criadoPorEmail' in data) || data.criadoPorEmail == null || data.criadoPorEmail is string) &&
+             (!('criadoPorNome' in data) || data.criadoPorNome == null || data.criadoPorNome is string) &&
              data.ownerId == request.auth.uid;
     }
 
     function isValidCarteira(data) {
       return data.keys().hasAll(['nome', 'ownerId', 'dataCriacao']) &&
              data.nome is string && data.nome.size() <= 100 &&
-             data.ownerId == request.auth.uid;
+             (!('ownerEmail' in data) || data.ownerEmail == null || data.ownerEmail is string) &&
+             (!('emailsCompartilhados' in data) || data.emailsCompartilhados is list);
     }
 
     match /devedores/{devedorId} {
       allow create: if isSignedIn() && isValidId(devedorId) && 
-                      isValidDevedor(request.resource.data);
-      allow get: if isSignedIn() && (resource.data.ownerId == request.auth.uid);
-      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
-      allow update: if isOwner(resource.data.ownerId) && 
-                      isValidDevedor(request.resource.data) &&
+                      isValidDevedorShape(request.resource.data) &&
+                      request.resource.data.ownerId == request.auth.uid &&
+                      (request.resource.data.carteiraId == null || hasAccessToCarteira(request.resource.data.carteiraId));
+      
+      allow get: if isSignedIn() && hasAccessToDevedor(resource.data);
+      allow list: if isSignedIn() && hasAccessToDevedor(resource.data);
+      
+      allow update: if isSignedIn() &&
+                      hasAccessToDevedor(resource.data) &&
+                      isValidDevedorShape(request.resource.data) &&
                       request.resource.data.ownerId == resource.data.ownerId &&
-                      request.resource.data.dataCriacao == resource.data.dataCriacao;
-      allow delete: if isOwner(resource.data.ownerId);
+                      request.resource.data.dataCriacao == resource.data.dataCriacao &&
+                      (request.resource.data.carteiraId == null || hasAccessToCarteira(request.resource.data.carteiraId)) &&
+                      (
+                        request.resource.data.get('carteiraId', null) == resource.data.get('carteiraId', null) ||
+                        (
+                          (!('carteiraId' in resource.data) || resource.data.carteiraId == null) ?
+                            resource.data.ownerId == request.auth.uid :
+                            get(/databases/$(database)/documents/carteiras/$(resource.data.carteiraId)).data.ownerId == request.auth.uid
+                        )
+                      );
+      
+      allow delete: if isSignedIn() && hasAccessToDevedor(resource.data) &&
+                      (
+                        (!('carteiraId' in resource.data) || resource.data.carteiraId == null) ? 
+                          resource.data.ownerId == request.auth.uid :
+                          get(/databases/$(database)/documents/carteiras/$(resource.data.carteiraId)).data.ownerId == request.auth.uid
+                      );
 
       match /historico/{transacaoId} {
         allow create: if isSignedIn() && isValidId(transacaoId) &&
                         isValidHistorico(request.resource.data) &&
-                        get(/databases/$(database)/documents/devedores/$(devedorId)).data.ownerId == request.auth.uid;
-        allow get: if isOwner(request.auth.uid); // This needs to be refined if ownerId isn't on doc
-        allow list: if isSignedIn() && (resource == null || resource.data.ownerId == request.auth.uid);
+                        hasAccessToDevedor(get(/databases/$(database)/documents/devedores/$(devedorId)).data);
+        allow get: if isSignedIn() && hasAccessToDevedor(get(/databases/$(database)/documents/devedores/$(devedorId)).data);
+        allow list: if isSignedIn() && hasAccessToDevedor(get(/databases/$(database)/documents/devedores/$(devedorId)).data);
+        allow update: if isSignedIn() &&
+                        hasAccessToDevedor(get(/databases/$(database)/documents/devedores/$(devedorId)).data) &&
+                        isValidHistorico(request.resource.data) &&
+                        request.resource.data.ownerId == resource.data.ownerId;
       }
     }
 
     match /carteiras/{carteiraId} {
-      allow create: if isSignedIn() && isValidId(carteiraId) && isValidCarteira(request.resource.data);
-      allow get: if isSignedIn() && (resource.data.ownerId == request.auth.uid);
-      allow list: if isSignedIn() && resource.data.ownerId == request.auth.uid;
-      allow update: if isOwner(resource.data.ownerId) && 
+      allow create: if isSignedIn() && isValidId(carteiraId) && isValidCarteira(request.resource.data) && request.resource.data.ownerId == request.auth.uid;
+      allow get: if isSignedIn() && (resource.data.ownerId == request.auth.uid || 
+                     ('emailsCompartilhados' in resource.data && request.auth.token.email in resource.data.emailsCompartilhados));
+      allow list: if isSignedIn() && (resource.data.ownerId == request.auth.uid || 
+                     ('emailsCompartilhados' in resource.data && request.auth.token.email in resource.data.emailsCompartilhados));
+      allow update: if isSignedIn() && 
+                      (resource.data.ownerId == request.auth.uid || 
+                       ('emailsCompartilhados' in resource.data && request.auth.token.email in resource.data.emailsCompartilhados)) &&
                       isValidCarteira(request.resource.data) &&
                       request.resource.data.ownerId == resource.data.ownerId &&
                       request.resource.data.dataCriacao == resource.data.dataCriacao;
-      allow delete: if isOwner(resource.data.ownerId);
+      allow delete: if isSignedIn() && resource.data.ownerId == request.auth.uid;
     }
 
     match /autorizacoes/{autorizacaoId} {
-      // Regra restrita: o usuário só pode ler/consultar se o e-mail no documento for o dele
       allow read: if isSignedIn() && (resource == null || resource.data.email == request.auth.token.email);
       allow write: if false;
     }

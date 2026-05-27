@@ -30,6 +30,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { formatarMoeda, cn } from '../../lib/utils';
 import { usePainel } from './usePainel';
 import { obterNomeCarteira, obterCarteiraDoDevedor } from './Painel.utils';
+import { auth } from '../../lib/firebase';
 
 // Tipo para ordenação suportado no dashboard
 type TipoOrdenacao = 'PRIORIDADE' | 'VALOR_ALTO' | 'VALOR_BAIXO';
@@ -297,11 +298,14 @@ export function Painel({
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
             {devedoresFiltrados.map(devedor => {
               const carteiraNome = obterCarteiraDoDevedor(devedor, carteiras);
+              const devedorCarteira = devedor.carteiraId ? carteiras.find(c => c.id === devedor.carteiraId) : null;
+              const podeExcluir = !devedor.carteiraId || (devedorCarteira ? devedorCarteira.ownerId === auth.currentUser?.uid : true);
               return (
                 <CartaoDevedor 
                   key={devedor.id} 
                   devedor={devedor} 
                   carteiraNome={carteiraNome}
+                  podeExcluir={podeExcluir}
                   onPagar={(dev) => { setDevedorSelecionado(dev); setModalPagamento(true); }}
                   onAporte={(dev) => { setDevedorSelecionado(dev); setModalAporte(true); }}
                   onVerHistorico={(dev) => { setDevedorSelecionado(dev); setModalHistorico(true); }}

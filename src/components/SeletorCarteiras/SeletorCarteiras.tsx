@@ -4,7 +4,7 @@
  * Todas as nomenclaturas, termos e textos estão rigorosamente em português.
  */
 
-import React from 'react';
+import React, { useState } from 'react';
 import { Carteira, Devedor } from '../../types';
 import { useSeletorCarteiras } from './useSeletorCarteiras';
 import { 
@@ -21,8 +21,13 @@ import {
   LogOut, 
   Loader2, 
   Sparkles, 
-  FolderDown 
+  FolderDown,
+  Share2,
+  X,
+  Users,
+  Database
 } from 'lucide-react';
+import { servicoDados } from '../../services/servicoDados';
 
 interface SeletorCarteirasProps {
   carteiras: Carteira[];
@@ -33,6 +38,7 @@ interface SeletorCarteirasProps {
   loading: boolean;
   onLogout: () => void;
   userEmail: string | null;
+  refreshCarteiras?: () => void;
 }
 
 export function SeletorCarteiras({
@@ -44,6 +50,7 @@ export function SeletorCarteiras({
   loading,
   onLogout,
   userEmail,
+  refreshCarteiras,
 }: SeletorCarteirasProps) {
   const {
     novaCarteiraNome,
@@ -57,6 +64,53 @@ export function SeletorCarteiras({
     onCreateWallet,
     onDeleteWallet,
   });
+
+  const [carteiraEmConfiguracaoCompartilhamento, setCarteiraEmConfiguracaoCompartilhamento] = useState<Carteira | null>(null);
+  const [novoEmailCompartilhar, setNovoEmailCompartilhar] = useState('');
+  const [processandoCompartilhamento, setProcessandoCompartilhamento] = useState(false);
+
+  const lidarComCompartilhar = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!carteiraEmConfiguracaoCompartilhamento || !novoEmailCompartilhar.trim()) return;
+    setProcessandoCompartilhamento(true);
+    try {
+      await servicoDados.compartilharCarteira(carteiraEmConfiguracaoCompartilhamento.id, novoEmailCompartilhar);
+      // Atualizar dados locais da carteira
+      const atualizada = await servicoDados.listarCarteiras();
+      const encontrada = atualizada.find(c => c.id === carteiraEmConfiguracaoCompartilhamento.id);
+      if (encontrada) {
+        setCarteiraEmConfiguracaoCompartilhamento(encontrada);
+      }
+      setNovoEmailCompartilhar('');
+      if (refreshCarteiras) {
+        refreshCarteiras();
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setProcessandoCompartilhamento(false);
+    }
+  };
+
+  const lidarComRemoverCompartilhamento = async (email: string) => {
+    if (!carteiraEmConfiguracaoCompartilhamento) return;
+    setProcessandoCompartilhamento(true);
+    try {
+      await servicoDados.removerCompartilhamentoCarteira(carteiraEmConfiguracaoCompartilhamento.id, email);
+      const atualizada = await servicoDados.listarCarteiras();
+      const encontrada = atualizada.find(c => c.id === carteiraEmConfiguracaoCompartilhamento.id);
+      if (encontrada) {
+        setCarteiraEmConfiguracaoCompartilhamento(encontrada);
+      }
+      if (refreshCarteiras) {
+        refreshCarteiras();
+      }
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setProcessandoCompartilhamento(false);
+    }
+  };
 
   const qtdeSemCarteira = contarDevedoresSemCarteira(todosDevedores);
   const saldoSemCarteira = calcularSaldoSemCarteira(todosDevedores);
@@ -148,33 +202,47 @@ export function SeletorCarteiras({
                     <Wallet className="w-6 h-6" />
                   </div>
 
-                  {isConfirming ? (
-                    <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+                    <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                      {/* Botão de Compartilhamento */}
                       <button
-                        onClick={(e) => lidarComExclusao(c.id, e)}
-                        className="text-[8px] font-black uppercase py-1 px-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors cursor-pointer"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setCarteiraEmConfiguracaoCompartilhamento(c);
+                        }}
+                        className="p-1 px-2 text-[8px] font-black uppercase text-giro-primary bg-giro-primary/5 hover:bg-giro-primary/10 rounded-md transition-all cursor-pointer inline-flex items-center gap-1 mr-1"
+                        title="Compartilhar Carteira"
                       >
-                        Sim
+                        Compartilhar
                       </button>
-                      <button
-                        onClick={(e) => { e.stopPropagation(); setIdConfirmarExclusao(null); }}
-                        className="text-[8px] font-black uppercase py-1 px-2 bg-gray-100 text-giro-text rounded-md hover:bg-gray-200 transition-colors cursor-pointer"
-                      >
-                        Não
-                      </button>
+
+                      {isConfirming ? (
+                        <div className="flex items-center gap-1" onClick={e => e.stopPropagation()}>
+                          <button
+                            onClick={(e) => lidarComExclusao(c.id, e)}
+                            className="text-[8px] font-black uppercase py-1 px-2.5 bg-red-600 text-white rounded-md hover:bg-red-700 transition-colors cursor-pointer"
+                          >
+                            Sim
+                          </button>
+                          <button
+                            onClick={(e) => { e.stopPropagation(); setIdConfirmarExclusao(null); }}
+                            className="text-[8px] font-black uppercase py-1 px-2 bg-gray-100 text-giro-text rounded-md hover:bg-gray-200 transition-colors cursor-pointer"
+                          >
+                            Não
+                          </button>
+                        </div>
+                      ) : (
+                        <button
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setIdConfirmarExclusao(c.id);
+                          }}
+                          className="p-1.5 text-giro-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
+                          title="Excluir Carteira"
+                        >
+                          <Trash2 className="w-3.5 h-3.5" />
+                        </button>
+                      )}
                     </div>
-                  ) : (
-                    <button
-                      onClick={(e) => {
-                        e.stopPropagation();
-                        setIdConfirmarExclusao(c.id);
-                      }}
-                      className="p-2 text-giro-text-muted hover:text-red-600 hover:bg-red-50 rounded-lg transition-all cursor-pointer"
-                      title="Excluir Carteira"
-                    >
-                      <Trash2 className="w-4 h-4" />
-                    </button>
-                  )}
                 </div>
 
                 <div className="mt-3">
@@ -231,12 +299,79 @@ export function SeletorCarteiras({
         </div>
       </main>
 
+      {/* Modal De Compartilhamento */}
+      {carteiraEmConfiguracaoCompartilhamento && (
+        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-[200] flex items-center justify-center p-4 animate-in fade-in duration-200">
+          <div className="bg-white rounded-3xl w-full max-w-md p-6 shadow-2xl border border-gray-100 flex flex-col gap-4 animate-in zoom-in-95 duration-200 relative">
+            <button
+              onClick={() => {
+                setCarteiraEmConfiguracaoCompartilhamento(null);
+                setNovoEmailCompartilhar('');
+              }}
+              className="absolute top-4 right-4 p-1.5 text-giro-text-muted hover:bg-gray-50 rounded-full transition-colors cursor-pointer"
+            >
+              <X className="w-5 h-5" />
+            </button>
+
+            <div className="flex items-center gap-2 text-giro-primary mb-1">
+              <Users className="w-5 h-5 shrink-0" />
+              <h2 className="text-lg font-black tracking-tight uppercase">Compartilhar Carteira</h2>
+            </div>
+            <p className="text-xs text-giro-text-muted -mt-3">
+              Compartilhe a carteira <strong className="text-giro-text font-bold">"{carteiraEmConfiguracaoCompartilhamento.nome}"</strong> com outros usuários do sistema. Os e-mails inseridos terão acesso completo de visualização e edição compartilhada.
+            </p>
+
+            <form onSubmit={lidarComCompartilhar} className="flex gap-2">
+              <input
+                type="email"
+                required
+                placeholder="exemplo@gmail.com"
+                value={novoEmailCompartilhar}
+                onChange={e => setNovoEmailCompartilhar(e.target.value)}
+                disabled={processandoCompartilhamento}
+                className="flex-1 px-3 py-2 border border-gray-200 rounded-xl text-xs outline-none focus:ring-2 focus:ring-giro-primary focus:border-transparent transition-all font-bold"
+              />
+              <button
+                type="submit"
+                disabled={processandoCompartilhamento || !novoEmailCompartilhar.trim()}
+                className="px-4 py-2 bg-giro-primary text-white text-xs font-black uppercase rounded-xl hover:bg-giro-primary/95 active:scale-95 transition-all disabled:opacity-50 cursor-pointer text-center"
+              >
+                Add
+              </button>
+            </form>
+
+            <div className="mt-2">
+              <span className="text-[9px] font-black uppercase text-giro-text-muted tracking-wider">Usuários com acesso</span>
+              <div className="mt-2 divide-y divide-gray-50 max-h-36 overflow-auto border border-gray-50 rounded-xl p-1 bg-gray-50/20">
+                {(!carteiraEmConfiguracaoCompartilhamento.emailsCompartilhados || carteiraEmConfiguracaoCompartilhamento.emailsCompartilhados.length === 0) ? (
+                  <div className="text-center py-4 text-[10px] text-gray-400 font-bold">Esta carteira ainda é privada.</div>
+                ) : (
+                  carteiraEmConfiguracaoCompartilhamento.emailsCompartilhados.map(email => (
+                    <div key={email} className="flex items-center justify-between py-2 px-2 text-xs font-semibold text-giro-text">
+                      <span className="truncate">{email}</span>
+                      <button
+                        type="button"
+                        onClick={() => lidarComRemoverCompartilhamento(email)}
+                        disabled={processandoCompartilhamento}
+                        className="text-[9px] font-black uppercase text-red-500 hover:underline disabled:opacity-50 cursor-pointer"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  ))
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
+
       <footer className="mt-16 text-center opacity-30 select-none flex flex-col items-center justify-center gap-2">
         <div className="flex items-center gap-2">
           <div className="w-6 h-1 bg-giro-primary rounded-full"></div>
           <span className="text-[10px] font-black uppercase tracking-[0.2em]">Giro Dashboard</span>
         </div>
-        <span className="text-[9px] font-bold">Versão 3.2.0</span>
+        <span className="text-[9px] font-bold">Versão 3.3.0</span>
       </footer>
     </div>
   );

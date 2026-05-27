@@ -8,6 +8,7 @@ import React from 'react';
 import { Devedor } from '../../types';
 import { useCartaoDevedor } from './useCartaoDevedor';
 import { formatarMoeda, cn } from '../../lib/utils';
+import { auth } from '../../lib/firebase';
 import {
   MessageCircle,
   ArrowUpCircle,
@@ -24,6 +25,7 @@ import {
 interface CartaoDevedorProps {
   devedor: Devedor;
   carteiraNome?: string;
+  podeExcluir?: boolean;
   onPagar: (d: Devedor) => void;
   onAporte: (d: Devedor) => void;
   onVerHistorico: (d: Devedor) => void;
@@ -34,6 +36,7 @@ interface CartaoDevedorProps {
 export const CartaoDevedor: React.FC<CartaoDevedorProps> = ({
   devedor,
   carteiraNome,
+  podeExcluir = true,
   onPagar,
   onAporte,
   onVerHistorico,
@@ -52,6 +55,8 @@ export const CartaoDevedor: React.FC<CartaoDevedorProps> = ({
     dataTextoFormatada,
     urlWhatsApp,
   } = useCartaoDevedor({ devedor });
+
+  const ehDonoDoCard = !devedor.ownerId || devedor.ownerId === auth.currentUser?.uid;
 
   return (
     <div className="nu-card mb-3 p-4 flex flex-col gap-3 text-giro-text shadow-sm border border-gray-100/50 hover:shadow-md transition-shadow relative overflow-hidden">
@@ -122,14 +127,18 @@ export const CartaoDevedor: React.FC<CartaoDevedorProps> = ({
                     <Pencil className="w-3 h-3 text-giro-primary/60" />
                     Editar Dados
                   </button>
-                  <div className="h-[1px] bg-gray-50 mx-2" />
-                  <button
-                    onClick={() => { onExcluir(devedor); setMenuAberto(false); }}
-                    className="w-full flex items-center gap-3 px-4 py-2 text-[10px] font-bold text-red-600 hover:bg-red-50 transition-colors uppercase tracking-wider cursor-pointer"
-                  >
-                    <X className="w-3 h-3" />
-                    Excluir Cliente
-                  </button>
+                  {podeExcluir && (
+                    <>
+                      <div className="h-[1px] bg-gray-50 mx-2" />
+                      <button
+                        onClick={() => { onExcluir(devedor); setMenuAberto(false); }}
+                        className="w-full flex items-center gap-3 px-4 py-2 text-[10px] font-bold text-red-600 hover:bg-red-50 transition-colors uppercase tracking-wider cursor-pointer"
+                      >
+                        <X className="w-3 h-3" />
+                        Excluir Cliente
+                      </button>
+                    </>
+                  )}
                 </div>
               </>
             )}
@@ -188,6 +197,17 @@ export const CartaoDevedor: React.FC<CartaoDevedorProps> = ({
         </div>
         <span className="text-[10px] font-black text-green-700">{formatarMoeda(devedor.totalLucroGerado || 0)}</span>
       </div>
+
+      {(devedor.criadoPorEmail || devedor.ultimaAlteracaoPorEmail) && (
+        <div className="bg-gray-50 p-2 rounded-xl text-[8px] text-giro-text-muted/90 flex flex-col gap-0.5 border border-gray-100/50">
+          {devedor.criadoPorEmail && (
+            <div>Criado por: <strong className="text-giro-text font-bold">{devedor.criadoPorNome || devedor.criadoPorEmail}</strong></div>
+          )}
+          {devedor.ultimaAlteracaoPorEmail && (
+            <div>Última alteração por: <strong className="text-giro-text font-bold">{devedor.ultimaAlteracaoPorNome || devedor.ultimaAlteracaoPorEmail}</strong></div>
+          )}
+        </div>
+      )}
 
       <div className="grid grid-cols-3 gap-2">
         <button 

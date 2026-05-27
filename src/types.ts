@@ -13,12 +13,19 @@ export interface Devedor {
   endereco?: string;
   observacoes?: string;
   carteiraId?: string | null;
+  criadoPorEmail?: string;
+  criadoPorNome?: string;
+  ultimaAlteracaoPorEmail?: string;
+  ultimaAlteracaoPorNome?: string;
+  ultimaAlteracaoData?: any;
 }
 
 export interface Carteira {
   id: string;
   nome: string;
   ownerId: string;
+  ownerEmail?: string;
+  emailsCompartilhados?: string[];
   dataCriacao: any;
 }
 
@@ -33,4 +40,6 @@ export interface Historico {
   valorAmortizado: number;
   saldoRestante: number;
   observacao: string;
+  criadoPorEmail?: string;
+  criadoPorNome?: string;
 }

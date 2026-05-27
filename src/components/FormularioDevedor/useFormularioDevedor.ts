@@ -5,20 +5,30 @@
  */
 
 import React, { useState } from 'react';
-import { Devedor } from '../../types';
+import { Devedor, Carteira } from '../../types';
 import { servicoDados } from '../../services/servicoDados';
+import { auth } from '../../lib/firebase';
 
 interface UseFormularioDevedorProps {
   onSuccess: () => void;
   devedorParaEditar?: Devedor;
+  carteiras: Carteira[];
   carteiraAtivaId?: string | null;
 }
 
 export function useFormularioDevedor({
   onSuccess,
   devedorParaEditar,
+  carteiras,
   carteiraAtivaId,
 }: UseFormularioDevedorProps) {
+  const ehDonoDoCard = !devedorParaEditar || devedorParaEditar.ownerId === auth.currentUser?.uid;
+
+  // Se o card já existe e está numa carteira, busca essa carteira para ver as permissões de movimentação
+  const devedorCarteira = devedorParaEditar?.carteiraId ? carteiras.find(c => c.id === devedorParaEditar.carteiraId) : null;
+  // Pode movimentar se não tiver editando (cadastro novo), se não tiver carteira (Geral), ou se a carteira for dele (ownerId == uid)
+  const podeMovimentar = !devedorParaEditar || !devedorParaEditar.carteiraId || (devedorCarteira ? devedorCarteira.ownerId === auth.currentUser?.uid : true);
+
   const [nomeCompleto, setNomeCompleto] = useState(devedorParaEditar?.nomeCompleto || '');
   const [whatsapp, setWhatsapp] = useState(devedorParaEditar?.whatsapp || '');
   const [taxaJuros, setTaxaJuros] = useState(devedorParaEditar?.taxaJurosMensal.toString() || '10');
@@ -42,6 +52,9 @@ export function useFormularioDevedor({
     setCarregando(true);
     try {
       if (devedorParaEditar?.id) {
+        // Se não tiver permissão para movimentar a carteira, preserva exatamente o carteiraId original
+        const carteiraAlvo = podeMovimentar ? (carteiraId || null) : (devedorParaEditar.carteiraId || null);
+
         await servicoDados.atualizarDevedor(devedorParaEditar.id, {
           nomeCompleto,
           whatsapp,
@@ -49,7 +62,7 @@ export function useFormularioDevedor({
           diaVencimento: Number(diaVencimento),
           endereco: endereco || '',
           observacoes: observacoes || '',
-          carteiraId: carteiraId || null,
+          carteiraId: carteiraAlvo,
         });
       } else {
         await servicoDados.criarDevedor({
@@ -95,5 +108,6 @@ export function useFormularioDevedor({
     setCarteiraId,
     carregando,
     lidarComEnvio,
+    podeMovimentar,
   };
 }

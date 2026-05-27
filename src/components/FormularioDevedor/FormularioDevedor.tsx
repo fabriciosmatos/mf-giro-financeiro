@@ -42,9 +42,11 @@ export function FormularioDevedor({
     setCarteiraId,
     carregando,
     lidarComEnvio,
+    podeMovimentar,
   } = useFormularioDevedor({
     onSuccess,
     devedorParaEditar,
+    carteiras,
     carteiraAtivaId,
   });
 
@@ -133,13 +135,19 @@ export function FormularioDevedor({
         <select
           value={carteiraId}
           onChange={e => setCarteiraId(e.target.value)}
-          className="w-full p-4 bg-giro-bg rounded-2xl border-0 focus:ring-2 focus:ring-giro-primary font-bold text-sm text-giro-text"
+          disabled={!podeMovimentar}
+          className="w-full p-4 bg-giro-bg rounded-2xl border-0 focus:ring-2 focus:ring-giro-primary font-bold text-sm text-giro-text disabled:opacity-60 disabled:cursor-not-allowed"
         >
           <option value="">Geral</option>
           {carteiras.map(c => (
             <option key={c.id} value={c.id}>{c.nome}</option>
           ))}
         </select>
+        {!podeMovimentar && (
+          <p className="text-[10px] font-bold text-amber-600 mt-1.5 uppercase tracking-tight">
+            ⚠ Apenas o proprietário desta carteira pode transferir este card.
+          </p>
+        )}
       </div>
 
       <div>
