@@ -180,7 +180,7 @@ export function SeletorCarteiras({
         </div>
       </header>
 
-      <main className="flex-1 max-w-4xl w-full mx-auto px-6 pt-10">
+      <main className="flex-1 max-w-4xl w-full mx-auto px-6 pt-6">
         <div className="mb-8">
           <span className="text-[9px] font-black uppercase tracking-[0.2em] text-giro-primary bg-giro-primary/10 px-2.5 py-1 rounded-full">
             Selecione ou Crie
