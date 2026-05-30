@@ -7,6 +7,8 @@ interface BotaoConfirmarDuploCliqueProps {
   carregando: boolean;
   disabled?: boolean;
   className?: string;
+  type?: 'submit' | 'button';
+  onClick?: (e: React.MouseEvent<HTMLButtonElement>) => void;
 }
 
 export function BotaoConfirmarDuploClique({
@@ -15,7 +17,9 @@ export function BotaoConfirmarDuploClique({
   loadingText,
   carregando,
   disabled = false,
-  className = "nu-button-primary w-full"
+  className = "nu-button-primary w-full",
+  type = 'submit',
+  onClick
 }: BotaoConfirmarDuploCliqueProps) {
   const [segundoClique, setSegundoClique] = useState(false);
 
@@ -40,7 +44,7 @@ export function BotaoConfirmarDuploClique({
 
     if (!segundoClique) {
       const form = e.currentTarget.form;
-      if (form) {
+      if (type === 'submit' && form) {
         // Run HTML5 form validations (e.g. required attributes)
         const isValid = form.checkValidity();
         if (!isValid) {
@@ -52,12 +56,17 @@ export function BotaoConfirmarDuploClique({
       // Stop the first actual submit action and ask for confirmation
       e.preventDefault();
       setSegundoClique(true);
+    } else {
+      // Second click! Execute custom onClick if defined
+      if (onClick) {
+        onClick(e);
+      }
     }
   };
 
   return (
     <button
-      type="submit"
+      type={type}
       disabled={disabled || carregando}
       onClick={handleMouseDownOrClick}
       className={`${className} relative overflow-hidden transition-all duration-300 ${

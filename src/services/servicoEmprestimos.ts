@@ -3,6 +3,7 @@ import {
   doc, 
   addDoc, 
   updateDoc, 
+  deleteDoc,
   getDocs, 
   query, 
   where, 
@@ -80,6 +81,16 @@ export const servicoEmprestimos = {
       await updateDoc(docRef, payload);
     } catch (error) {
       handleFirestoreError(error, OperationType.UPDATE, path);
+    }
+  },
+
+  async deletarEmprestimo(devedorId: string, emprestimoId: string) {
+    const path = `devedores/${devedorId}/emprestimos/${emprestimoId}`;
+    try {
+      const docRef = doc(db, 'devedores', devedorId, 'emprestimos', emprestimoId);
+      await deleteDoc(docRef);
+    } catch (error) {
+      handleFirestoreError(error, OperationType.DELETE, path);
     }
   }
 };
