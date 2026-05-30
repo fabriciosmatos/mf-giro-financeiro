@@ -105,6 +105,27 @@ export function Painel({
     refresh
   });
 
+  // Referências para detectar cliques fora dos seletores de ordenação e filtros (UX de click outside)
+  const ordenacaoRef = React.useRef<HTMLDivElement>(null);
+  const filtroRef = React.useRef<HTMLDivElement>(null);
+
+  React.useEffect(() => {
+    function lidarComCliqueFora(e: MouseEvent | TouchEvent) {
+      if (ordenacaoAberta && ordenacaoRef.current && !ordenacaoRef.current.contains(e.target as Node)) {
+        setOrdenacaoAberta(false);
+      }
+      if (filtroAberto && filtroRef.current && !filtroRef.current.contains(e.target as Node)) {
+        setFiltroAberto(false);
+      }
+    }
+    document.addEventListener('mousedown', lidarComCliqueFora);
+    document.addEventListener('touchstart', lidarComCliqueFora);
+    return () => {
+      document.removeEventListener('mousedown', lidarComCliqueFora);
+      document.removeEventListener('touchstart', lidarComCliqueFora);
+    };
+  }, [ordenacaoAberta, filtroAberto, setOrdenacaoAberta, setFiltroAberto]);
+
   const carteiraAtivaNome = obterNomeCarteira(carteiraAtivaId, carteiras);
   const carteiraAtivaObj = carteiraAtivaId && carteiraAtivaId !== 'sem-carteira'
     ? carteiras.find(c => c.id === carteiraAtivaId)
@@ -178,7 +199,7 @@ export function Painel({
           
           <div className="flex items-center gap-2">
             {/* Seletor de Ordenação */}
-            <div className="relative">
+            <div ref={ordenacaoRef} className="relative">
               <button 
                 onClick={() => setOrdenacaoAberta(!ordenacaoAberta)}
                 className={cn(
@@ -199,35 +220,32 @@ export function Painel({
 
               <AnimatePresence>
                 {ordenacaoAberta && (
-                  <>
-                    <div className="fixed inset-0 z-[100] bg-black/5" onClick={() => setOrdenacaoAberta(false)} />
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[101] overflow-hidden py-1.5 p-1"
-                    >
-                      {(['PRIORIDADE', 'VALOR_ALTO', 'VALOR_BAIXO'] as const).map(opcao => (
-                        <button
-                          key={opcao}
-                          onClick={() => { setOrdenacao(opcao); setOrdenacaoAberta(false); }}
-                          className={cn(
-                            "w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center justify-between cursor-pointer",
-                            ordenacao === opcao ? "bg-blue-600 text-white" : "text-giro-text-muted hover:bg-gray-50"
-                          )}
-                        >
-                          {opcao === 'PRIORIDADE' ? 'Prazo' : opcao === 'VALOR_ALTO' ? 'Maior Saldo' : 'Menor Saldo'}
-                          {ordenacao === opcao && <Check className="w-3.5 h-3.5 text-white" />}
-                        </button>
-                      ))}
-                    </motion.div>
-                  </>
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute right-0 mt-2 w-48 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[101] overflow-hidden py-1.5 p-1"
+                  >
+                    {(['PRIORIDADE', 'VALOR_ALTO', 'VALOR_BAIXO'] as const).map(opcao => (
+                      <button
+                        key={opcao}
+                        onClick={() => { setOrdenacao(opcao); setOrdenacaoAberta(false); }}
+                        className={cn(
+                          "w-full text-left px-4 py-2.5 rounded-xl text-[10px] font-bold uppercase tracking-wider transition-colors flex items-center justify-between cursor-pointer",
+                          ordenacao === opcao ? "bg-blue-600 text-white" : "text-giro-text-muted hover:bg-gray-50"
+                        )}
+                      >
+                        {opcao === 'PRIORIDADE' ? 'Prazo' : opcao === 'VALOR_ALTO' ? 'Maior Saldo' : 'Menor Saldo'}
+                        {ordenacao === opcao && <Check className="w-3.5 h-3.5 text-white" />}
+                      </button>
+                    ))}
+                  </motion.div>
                 )}
               </AnimatePresence>
             </div>
 
             {/* Menu de Filtros por Status */}
-            <div className="relative">
+            <div ref={filtroRef} className="relative">
               <button 
                 onClick={() => setFiltroAberto(!filtroAberto)}
                 className={cn(
@@ -242,50 +260,47 @@ export function Painel({
 
               <AnimatePresence>
                 {filtroAberto && (
-                  <>
-                    <div className="fixed inset-0 z-[100] bg-black/5" onClick={() => setFiltroAberto(false)} />
-                    <motion.div
-                      initial={{ opacity: 0, y: 10, scale: 0.95 }}
-                      animate={{ opacity: 1, y: 0, scale: 1 }}
-                      exit={{ opacity: 0, y: 10, scale: 0.95 }}
-                      className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[101] overflow-hidden py-3 px-4 flex flex-col gap-3"
-                    >
-                      <p className="text-[9px] font-black uppercase tracking-widest text-giro-text-muted">Status Disponíveis</p>
-                      
-                      <div className="flex flex-col gap-1">
-                        {(['ATRASO', 'DIA', 'QUITADO'] as const).map(status => (
-                          <label
-                            key={status}
-                            className="flex items-center justify-between py-2 cursor-pointer group"
-                            onClick={(e) => e.stopPropagation()}
-                          >
-                            <div className="flex items-center gap-3 font-bold select-none">
-                              <div className={cn(
-                                "w-4 h-4 rounded-md border flex items-center justify-center transition-all",
-                                statusSelecionados.includes(status) 
-                                  ? "bg-giro-primary border-giro-primary text-white" 
-                                  : "bg-white border-gray-200 group-hover:border-giro-primary"
-                              )}>
-                                {statusSelecionados.includes(status) && <Check className="w-3 h-3" />}
-                              </div>
-                              <span className={cn(
-                                "text-[10px] font-bold uppercase tracking-wider transition-colors",
-                                statusSelecionados.includes(status) ? "text-giro-text" : "text-giro-text-muted"
-                              )}>
-                                {status === 'ATRASO' ? 'Atrasados' : status === 'DIA' ? 'Em Dia' : 'Quitados'}
-                              </span>
+                  <motion.div
+                    initial={{ opacity: 0, y: 10, scale: 0.95 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: 10, scale: 0.95 }}
+                    className="absolute right-0 mt-2 w-56 bg-white rounded-2xl shadow-2xl border border-gray-100 z-[101] overflow-hidden py-3 px-4 flex flex-col gap-3"
+                  >
+                    <p className="text-[9px] font-black uppercase tracking-widest text-giro-text-muted">Status Disponíveis</p>
+                    
+                    <div className="flex flex-col gap-1">
+                      {(['ATRASO', 'DIA', 'QUITADO'] as const).map(status => (
+                        <label
+                          key={status}
+                          className="flex items-center justify-between py-2 cursor-pointer group"
+                          onClick={(e) => e.stopPropagation()}
+                        >
+                          <div className="flex items-center gap-3 font-bold select-none">
+                            <div className={cn(
+                              "w-4 h-4 rounded-md border flex items-center justify-center transition-all",
+                              statusSelecionados.includes(status) 
+                                ? "bg-giro-primary border-giro-primary text-white" 
+                                : "bg-white border-gray-200 group-hover:border-giro-primary"
+                            )}>
+                              {statusSelecionados.includes(status) && <Check className="w-3 h-3" />}
                             </div>
-                            <input 
-                              type="checkbox" 
-                              className="hidden" 
-                              checked={statusSelecionados.includes(status)}
-                              onChange={() => alternarFiltroStatus(status)}
-                            />
-                          </label>
-                        ))}
-                      </div>
-                    </motion.div>
-                  </>
+                            <span className={cn(
+                              "text-[10px] font-bold uppercase tracking-wider transition-colors",
+                              statusSelecionados.includes(status) ? "text-giro-text" : "text-giro-text-muted"
+                            )}>
+                              {status === 'ATRASO' ? 'Atrasados' : status === 'DIA' ? 'Em Dia' : 'Quitados'}
+                            </span>
+                          </div>
+                          <input 
+                            type="checkbox" 
+                            className="hidden" 
+                            checked={statusSelecionados.includes(status)}
+                            onChange={() => alternarFiltroStatus(status)}
+                          />
+                        </label>
+                      ))}
+                    </div>
+                  </motion.div>
                 )}
               </AnimatePresence>
             </div>

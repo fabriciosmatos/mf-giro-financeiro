@@ -11,7 +11,7 @@ import { useFormularioDevedor } from './useFormularioDevedor';
 import { BotaoConfirmarDuploClique } from '../BotaoConfirmarDuploClique';
 import { formatarMoeda } from '../../lib/utils';
 import { servicoDados } from '../../services/servicoDados';
-import { Pencil, Calendar, Percent, Landmark, Trash2 } from 'lucide-react';
+import { Pencil, Calendar, Percent, Landmark, Trash2, User, FileText } from 'lucide-react';
 
 interface FormularioDevedorProps {
   onSuccess: () => void;
@@ -46,6 +46,9 @@ export function FormularioDevedor({
     carteiras,
     carteiraAtivaId,
   });
+
+  // Controle de Abas para Edição Apartada (UX Superior)
+  const [abaAtiva, setAbaAtiva] = useState<'cadastro' | 'contratos'>('cadastro');
 
   // Gerenciamento e Edição de Contratos do Devedor
   const [contractCarregando, setContractCarregando] = useState<string | null>(null);
@@ -152,99 +155,161 @@ export function FormularioDevedor({
   };
 
   return (
-    <div className="flex flex-col gap-6 text-giro-text">
-      {/* Formulário Principal de Edição de Dados Cadastrais */}
-      <form onSubmit={lidarComEnvio} className="flex flex-col gap-6">
-        <div>
-          <label className="block text-sm font-semibold mb-2 tracking-tight">Nome Completo</label>
-          <input 
-            type="text" 
-            value={nomeCompleto}
-            onChange={e => setNomeCompleto(e.target.value)}
-            className="w-full p-4 bg-giro-bg rounded-2xl border-0 focus:ring-2 focus:ring-giro-primary text-giro-text font-semibold"
-            placeholder="Ex: João da Silva"
-            required
-          />
+    <div className="flex flex-col gap-5 text-giro-text">
+      {/* Resumo Consolidado do Cliente (Sticky Context Box) - Apenas em edição */}
+      {devedorParaEditar && (
+        <div className="bg-giro-bg p-4 rounded-2xl flex items-center justify-between border border-gray-150/40 shadow-sm animate-in fade-in duration-300">
+          <div className="flex flex-col gap-0.5 min-w-0">
+            <span className="text-[10px] font-black uppercase text-giro-text-muted tracking-widest">Cliente Selecionado</span>
+            <h3 className="text-sm font-black text-giro-text truncate">{devedorParaEditar.nomeCompleto}</h3>
+            {devedorParaEditar.whatsapp && (
+              <span className="text-[11px] font-semibold text-giro-text-muted">
+                WhatsApp: {devedorParaEditar.whatsapp}
+              </span>
+            )}
+          </div>
+          <div className="flex flex-col items-end gap-0.5 shrink-0 pl-3 border-l border-gray-150/50">
+            <span className="text-[10px] font-black uppercase text-giro-text-muted tracking-widest">Dívida Ativa</span>
+            <span className="text-sm font-black text-giro-primary">
+              {formatarMoeda(devedorParaEditar.saldoDevedorAtual || 0)}
+            </span>
+          </div>
         </div>
+      )}
 
-        <div className="grid grid-cols-1 gap-4">
+      {/* Seletor de Abas - Alternância de Fluxos de Edição */}
+      {devedorParaEditar && (
+        <div className="flex bg-gray-100/75 p-1 rounded-2xl border border-gray-200/40">
+          <button
+            type="button"
+            onClick={() => setAbaAtiva('cadastro')}
+            className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              abaAtiva === 'cadastro'
+                ? 'bg-white text-giro-text shadow-sm ring-1 ring-black/5'
+                : 'text-giro-text-muted hover:text-giro-text'
+            }`}
+          >
+            <User className="w-4 h-4" />
+            Dados Cadastrais
+          </button>
+          <button
+            type="button"
+            onClick={() => setAbaAtiva('contratos')}
+            className={`flex-1 py-3 px-4 rounded-xl text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2 cursor-pointer ${
+              abaAtiva === 'contratos'
+                ? 'bg-white text-giro-text shadow-sm ring-1 ring-black/5'
+                : 'text-giro-text-muted hover:text-giro-text'
+            }`}
+          >
+            <FileText className="w-4 h-4" />
+            Contratos ({devedorParaEditar.emprestimos?.length || 0})
+          </button>
+        </div>
+      )}
+
+      {/* ABA 1: FORMULÁRIO DE DADOS CADASTRAIS */}
+      {(!devedorParaEditar || abaAtiva === 'cadastro') && (
+        <form onSubmit={lidarComEnvio} className="flex flex-col gap-6 animate-in fade-in duration-200">
+          {devedorParaEditar && (
+            <p className="text-[11px] font-semibold text-giro-text-muted -mb-2">
+              Edite as informações pessoais, dados de contato e segmentação de carteiras do cliente.
+            </p>
+          )}
+
           <div>
-            <label className="block text-sm font-semibold mb-2">WhatsApp</label>
+            <label className="block text-xs font-black uppercase text-giro-text-muted mb-2 tracking-wider">Nome Completo</label>
             <input 
-              type="tel" 
-              value={whatsapp}
-              onChange={e => setWhatsapp(e.target.value)}
+              type="text" 
+              value={nomeCompleto}
+              onChange={e => setNomeCompleto(e.target.value)}
               className="w-full p-4 bg-giro-bg rounded-2xl border-0 focus:ring-2 focus:ring-giro-primary text-giro-text font-semibold"
-              placeholder="11999999999"
+              placeholder="Ex: João da Silva"
               required
             />
           </div>
-        </div>
 
-        <div>
-          <label className="block text-sm font-semibold mb-2 tracking-tight">Carteira (Segmentação)</label>
-          <select
-            value={carteiraId}
-            onChange={e => setCarteiraId(e.target.value)}
-            disabled={!podeMovimentar}
-            className="w-full p-4 bg-giro-bg rounded-2xl border-0 focus:ring-2 focus:ring-giro-primary font-bold text-sm text-giro-text disabled:opacity-60 disabled:cursor-not-allowed"
-          >
-            <option value="">Geral</option>
-            {carteiras.map(c => (
-              <option key={c.id} value={c.id}>{c.nome}</option>
-            ))}
-          </select>
-          {!podeMovimentar && (
-            <p className="text-[10px] font-bold text-amber-600 mt-1.5 uppercase tracking-tight font-black">
-              ⚠ Apenas o proprietário desta carteira pode transferir este card.
-            </p>
-          )}
-        </div>
+          <div className="grid grid-cols-1 gap-4">
+            <div>
+              <label className="block text-xs font-black uppercase text-giro-text-muted mb-2 tracking-wider">WhatsApp</label>
+              <input 
+                type="tel" 
+                value={whatsapp}
+                onChange={e => setWhatsapp(e.target.value)}
+                className="w-full p-4 bg-giro-bg rounded-2xl border-0 focus:ring-2 focus:ring-giro-primary text-giro-text font-semibold"
+                placeholder="11999999999"
+                required
+              />
+            </div>
+          </div>
 
-        <div>
-          <label className="block text-sm font-semibold mb-2 tracking-tight">Endereço (Opcional)</label>
-          <textarea 
-            value={endereco}
-            onChange={e => setEndereco(e.target.value)}
-            className="w-full p-4 bg-giro-bg rounded-2xl border-0 focus:ring-2 focus:ring-giro-primary min-h-[80px]"
-            placeholder="Ex: Rua das Flores, 123 - Centro"
+          <div>
+            <label className="block text-xs font-black uppercase text-giro-text-muted mb-2 tracking-wider">Carteira (Segmentação)</label>
+            <select
+              value={carteiraId}
+              onChange={e => setCarteiraId(e.target.value)}
+              disabled={!podeMovimentar}
+              className="w-full p-4 bg-giro-bg rounded-2xl border-0 focus:ring-2 focus:ring-giro-primary font-bold text-sm text-giro-text disabled:opacity-60 disabled:cursor-not-allowed cursor-pointer"
+            >
+              <option value="">Geral</option>
+              {carteiras.map(c => (
+                <option key={c.id} value={c.id}>{c.nome}</option>
+              ))}
+            </select>
+            {!podeMovimentar && (
+              <p className="text-[10px] font-bold text-amber-600 mt-1.5 uppercase tracking-tight font-black">
+                ⚠ Apenas o proprietário desta carteira pode transferir este card.
+              </p>
+            )}
+          </div>
+
+          <div>
+            <label className="block text-xs font-black uppercase text-giro-text-muted mb-2 tracking-wider">Endereço (Opcional)</label>
+            <textarea 
+              value={endereco}
+              onChange={e => setEndereco(e.target.value)}
+              className="w-full p-4 bg-giro-bg rounded-2xl border-0 focus:ring-2 focus:ring-giro-primary min-h-[80px] text-sm text-giro-text font-semibold placeholder:font-normal"
+              placeholder="Ex: Rua das Flores, 123 - Centro"
+            />
+          </div>
+
+          <div>
+            <label className="block text-xs font-black uppercase text-giro-text-muted mb-2 tracking-wider">Observações Gerais (Opcional)</label>
+            <textarea 
+              value={observacoes}
+              onChange={e => setObservacoes(e.target.value)}
+              className="w-full p-4 bg-giro-bg rounded-2xl border-0 focus:ring-2 focus:ring-giro-primary min-h-[80px] text-sm text-giro-text font-semibold placeholder:font-normal"
+              placeholder="Notas importantes sobre o cliente..."
+            />
+          </div>
+
+          <BotaoConfirmarDuploClique
+            originalText={devedorParaEditar ? 'Gravar Alterações do Cadastro' : 'Salvar Novo Devedor'}
+            confirmText="Confirmar clique duplo..."
+            loadingText="Salvando..."
+            carregando={carregando}
+            className="nu-button-primary w-full mt-2 cursor-pointer"
           />
-        </div>
+        </form>
+      )}
 
-        <div>
-          <label className="block text-sm font-semibold mb-2 tracking-tight">Observações Gerais (Opcional)</label>
-          <textarea 
-            value={observacoes}
-            onChange={e => setObservacoes(e.target.value)}
-            className="w-full p-4 bg-giro-bg rounded-2xl border-0 focus:ring-2 focus:ring-giro-primary min-h-[80px]"
-            placeholder="Notas importantes sobre o cliente..."
-          />
-        </div>
-
-        <BotaoConfirmarDuploClique
-          originalText={devedorParaEditar ? 'Atualizar Cadastro' : 'Salvar Novo Devedor'}
-          confirmText="Confirmar clique duplo..."
-          loadingText="Salvando..."
-          carregando={carregando}
-          className="nu-button-primary w-full mt-2 cursor-pointer"
-        />
-      </form>
-
-      {/* Seção Exclusiva para Editar os Contratos / Porcentagens Atuais (Somente Edição de Devedor Existente) */}
-      {devedorParaEditar && (
-        <div className="mt-8 border-t border-gray-200/60 pt-6">
-          <div className="flex items-center justify-between mb-4">
-            <h4 className="text-xs font-black uppercase text-giro-text-muted tracking-widest flex items-center gap-1.5">
-              <span>Contratos & Porcentagens Ativas</span>
-              <span className="bg-gray-100 text-giro-text px-2 py-0.5 rounded-full text-[9px] font-bold">
+      {/* ABA 2: GERENCIAMENTO DE CONTRATOS (Somente para Edição de Devedor Existente) */}
+      {(devedorParaEditar && abaAtiva === 'contratos') && (
+        <div className="flex flex-col gap-4 animate-in fade-in duration-200">
+          <div>
+            <h4 className="text-xs font-black uppercase text-giro-text-muted tracking-widest flex items-center gap-1.5 mb-1.5">
+              <span>Contratos & Porcentagens Atuais</span>
+              <span className="bg-gray-100 text-giro-text px-2.5 py-0.5 rounded-full text-[9px] font-black">
                 {devedorParaEditar.emprestimos?.length || 0}
               </span>
             </h4>
+            <p className="text-[11px] font-semibold text-giro-text-muted mb-2">
+              Gerencie individualmente as taxas de juros, saldos devedores, vencimentos e o status de cada empréstimo.
+            </p>
           </div>
 
           <div className="flex flex-col gap-4">
             {(!devedorParaEditar.emprestimos || devedorParaEditar.emprestimos.length === 0) ? (
-              <p className="text-[11px] font-semibold text-giro-text-muted text-center py-6 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
+              <p className="text-[11px] font-semibold text-giro-text-muted text-center py-8 bg-gray-50 rounded-2xl border border-dashed border-gray-200">
                 Este cliente não possui empréstimos/contratos registrados.
               </p>
             ) : (
@@ -345,7 +410,7 @@ export function FormularioDevedor({
                           <select
                             value={camposEdicao.status}
                             onChange={e => setCamposEdicao({ ...camposEdicao, status: e.target.value as 'ATIVO' | 'QUITADO' })}
-                            className="w-full text-xs font-bold p-2.5 bg-giro-bg rounded-xl border-0 focus:ring-1 focus:ring-giro-primary text-giro-text"
+                            className="w-full text-xs font-bold p-2.5 bg-giro-bg rounded-xl border-0 focus:ring-1 focus:ring-giro-primary text-giro-text cursor-pointer"
                             required
                           >
                             <option value="ATIVO">ATIVO</option>
@@ -389,19 +454,19 @@ export function FormularioDevedor({
                     ) : (
                       <div className="grid grid-cols-2 gap-y-2 gap-x-4 text-[10px] text-giro-text-muted font-semibold">
                         <div className="flex justify-between border-b border-gray-100/30 pb-1">
-                          <span className="flex items-center gap-1"><Landmark className="w-3 h-3 text-giro-text-muted/50" /> Saldo:</span>
+                          <span className="flex items-center gap-1"><Landmark className="w-3.5 h-3.5 text-giro-text-muted/50" /> Saldo:</span>
                           <span className="font-extrabold text-giro-text">{formatarMoeda(emp.saldoDevedor)}</span>
                         </div>
                         <div className="flex justify-between border-b border-gray-100/30 pb-1">
-                          <span className="flex items-center gap-1"><Percent className="w-3 h-3 text-giro-text-muted/50" /> Juros:</span>
+                          <span className="flex items-center gap-1"><Percent className="w-3.5 h-3.5 text-giro-text-muted/50" /> Juros:</span>
                           <span className="font-extrabold text-giro-text">{emp.taxaJurosMensal}% / mês</span>
                         </div>
                         <div className="flex justify-between pt-0.5">
-                          <span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-giro-text-muted/50" /> Dia Venc:</span>
-                          <span className="font-extrabold text-giro-text">{emp.diaVencimento}</span>
+                          <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 text-giro-text-muted/50" /> Vencimento:</span>
+                          <span className="font-extrabold text-giro-text">Dia {emp.diaVencimento}</span>
                         </div>
                         <div className="flex justify-between pt-0.5">
-                          <span className="flex items-center gap-1"><Calendar className="w-3 h-3 text-giro-text-muted/50" /> Início:</span>
+                          <span className="flex items-center gap-1"><Calendar className="w-3.5 h-3.5 text-giro-text-muted/50" /> Início:</span>
                           <span className="font-extrabold text-giro-text">{formatadoData}</span>
                         </div>
                       </div>
