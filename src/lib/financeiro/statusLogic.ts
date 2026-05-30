@@ -1,4 +1,4 @@
-import { Devedor } from '../../types';
+import { Devedor, Emprestimo } from '../../types';
 import { calcularMesesDevidos, calcularDetalhamento } from './juros';
 
 export interface InfoStatus {
@@ -8,49 +8,111 @@ export interface InfoStatus {
   isAtrasado?: boolean;
 }
 
-export function getProximoVencimento(devedor: Devedor): Date {
-  const diaVenc = devedor.diaVencimento || (devedor.dataCriacao?.toDate ? devedor.dataCriacao.toDate().getDate() : new Date(devedor.dataCriacao).getDate());
-  
-  const dataReferencia = devedor.ultimoPagamento 
-    ? (devedor.ultimoPagamento.toDate ? devedor.ultimoPagamento.toDate() : new Date(devedor.ultimoPagamento))
-    : (devedor.dataCriacao?.toDate ? devedor.dataCriacao.toDate() : new Date());
+const extrairData = (campo: any): Date => {
+  if (!campo) return new Date();
+  if (campo.toDate) return campo.toDate();
+  return new Date(campo);
+};
 
-  const det = calcularDetalhamento(diaVenc, dataReferencia, devedor.saldoDevedorAtual, devedor.taxaJurosMensal);
-  
-  return det.dataProximoVencimento;
+export function obterDadosFiscaisConsolidados(devedor: Devedor) {
+  const emprestimos = devedor.emprestimos || [];
+  const ativos = emprestimos.filter(e => e.status === 'ATIVO');
+
+  if (ativos.length === 0) {
+    const temEmprestimos = devedor.emprestimos && devedor.emprestimos.length > 0;
+    return {
+      saldoDevedorAtual: temEmprestimos ? 0 : devedor.saldoDevedorAtual,
+      jurosMensalSimples: temEmprestimos ? 0 : (devedor.saldoDevedorAtual * (devedor.taxaJurosMensal / 100)),
+      jurosAcumulados: 0,
+      mesesDevidos: 0,
+      dataProximoVencimento: new Date(),
+      dataPrimeiroVencimento: new Date()
+    };
+  }
+
+  let totalSaldoDevedor = 0;
+  let totalJurosAcumulados = 0;
+  let maxMesesDevidos = 0;
+  let totalJurosMensalSimples = 0;
+  let proximoVencimentoGeral: Date | null = null;
+  let atrasadoDesdeGeral: Date | null = null;
+
+  ativos.forEach(e => {
+    totalSaldoDevedor += e.saldoDevedor;
+    totalJurosMensalSimples += Number((e.saldoDevedor * (e.taxaJurosMensal / 100)).toFixed(2));
+    
+    const diaVenc = e.diaVencimento || 1;
+    const ref = extrairData(e.ultimoPagamento || e.dataInicio);
+      
+    const det = calcularDetalhamento(diaVenc, ref, e.saldoDevedor, e.taxaJurosMensal);
+    totalJurosAcumulados += det.jurosAcumulados;
+    
+    if (det.mesesDevidos > maxMesesDevidos) {
+      maxMesesDevidos = det.mesesDevidos;
+      atrasadoDesdeGeral = det.dataPrimeiroVencimento;
+    }
+    
+    const vencimentoloan = det.dataProximoVencimento;
+    if (!proximoVencimentoGeral || vencimentoloan < proximoVencimentoGeral) {
+      proximoVencimentoGeral = vencimentoloan;
+    }
+  });
+
+  return {
+    saldoDevedorAtual: totalSaldoDevedor,
+    jurosMensalSimples: totalJurosMensalSimples,
+    jurosAcumulados: totalJurosAcumulados,
+    mesesDevidos: maxMesesDevidos,
+    dataProximoVencimento: proximoVencimentoGeral || new Date(),
+    dataPrimeiroVencimento: atrasadoDesdeGeral || proximoVencimentoGeral || new Date()
+  };
+}
+
+export function getProximoVencimento(devedor: Devedor): Date {
+  const consol = obterDadosFiscaisConsolidados(devedor);
+  return consol.dataProximoVencimento;
 }
 
 export function getDataOrdenacao(devedor: Devedor): number {
-  if (devedor.saldoDevedorAtual === 0) return Infinity;
+  const consol = obterDadosFiscaisConsolidados(devedor);
+  if (consol.saldoDevedorAtual === 0) return Infinity;
 
-  // Pegamos a data de referência (último pagamento ou criação)
+  const emprestimos = devedor.emprestimos || [];
+  const ativos = emprestimos.filter(e => e.status === 'ATIVO');
+  if (ativos.length > 0) {
+    let minTime = Infinity;
+    ativos.forEach(e => {
+      const ref = extrairData(e.ultimoPagamento || e.dataInicio);
+      if (ref.getTime() < minTime) {
+        minTime = ref.getTime();
+      }
+    });
+    return minTime;
+  }
+
   const dataReferencia = devedor.ultimoPagamento 
-    ? (devedor.ultimoPagamento.toDate ? devedor.ultimoPagamento.toDate() : new Date(devedor.ultimoPagamento))
-    : (devedor.dataCriacao?.toDate ? devedor.dataCriacao.toDate() : new Date());
+    ? extrairData(devedor.ultimoPagamento)
+    : extrairData(devedor.dataCriacao);
 
-  // Quanto mais antiga a referência, mais "atrasado" ou prioritário ele é
   return dataReferencia.getTime();
 }
 
 export function getInfoStatus(devedor: Devedor): InfoStatus {
-  if (devedor.saldoDevedorAtual === 0) {
+  const consol = obterDadosFiscaisConsolidados(devedor);
+  const temEmprestimos = devedor.emprestimos && devedor.emprestimos.length > 0;
+
+  if (!temEmprestimos) {
+    return { label: 'Sem Contratos', color: 'bg-gray-100 text-gray-600', prioridade: 60 };
+  }
+
+  if (consol.saldoDevedorAtual === 0) {
     return { label: 'Quitado', color: 'bg-green-100 text-green-700', prioridade: 100 };
   }
 
   const hoje = new Date();
   hoje.setHours(0, 0, 0, 0);
-  const hojeDia = hoje.getDate();
-  
-  const diaVenc = devedor.diaVencimento || (devedor.dataCriacao?.toDate ? devedor.dataCriacao.toDate().getDate() : new Date(devedor.dataCriacao).getDate());
-  
-  const dataReferencia = devedor.ultimoPagamento 
-    ? (devedor.ultimoPagamento.toDate ? devedor.ultimoPagamento.toDate() : new Date(devedor.ultimoPagamento))
-    : (devedor.dataCriacao?.toDate ? devedor.dataCriacao.toDate() : new Date());
 
-  const detalhe = calcularDetalhamento(diaVenc, dataReferencia, devedor.saldoDevedorAtual, devedor.taxaJurosMensal);
-  const mesesDevidos = detalhe.mesesDevidos;
-  
-  // Se tem meses acumulados, está atrasado indepedente do dia de hoje
+  const mesesDevidos = consol.mesesDevidos;
   if (mesesDevidos > 0) {
     return { 
       label: mesesDevidos > 1 ? `Atraso (${mesesDevidos}x)` : 'Em Atraso', 
@@ -60,8 +122,7 @@ export function getInfoStatus(devedor: Devedor): InfoStatus {
     };
   }
 
-  // Se não tem meses devidos, verificamos se o próximo vencimento é hoje ou amanhã
-  const proximoVenc = detalhe.dataPrimeiroVencimento; // Se meses=0, este é o próximo futuro
+  const proximoVenc = consol.dataProximoVencimento;
   const diffDays = Math.ceil((proximoVenc.getTime() - hoje.getTime()) / (1000 * 60 * 60 * 24));
 
   if (diffDays === 0) {

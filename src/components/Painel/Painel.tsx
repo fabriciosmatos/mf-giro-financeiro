@@ -27,7 +27,7 @@ import HistoricoLista from '../HistoricoLista';
 import { CabecalhoPainel } from '../CabecalhoPainel';
 import { EstadoVazio } from '../EstadoVazio';
 import { motion, AnimatePresence } from 'motion/react';
-import { formatarMoeda, cn } from '../../lib/utils';
+import { formatarMoeda, cn, VERSAO_SISTEMA } from '../../lib/utils';
 import { usePainel } from './usePainel';
 import { obterNomeCarteira, obterCarteiraDoDevedor } from './Painel.utils';
 import { auth } from '../../lib/firebase';
@@ -364,7 +364,7 @@ export function Painel({
         )}
       </PainelRetratil>
 
-      <PainelRetratil isOpen={modalAporte} onClose={() => setModalAporte(false)} title={`Novo Aporte em ${devedorSelecionado?.nomeCompleto.split(' ')[0]}`}>
+      <PainelRetratil isOpen={modalAporte} onClose={() => setModalAporte(false)} title={`Novo Empréstimo para ${devedorSelecionado?.nomeCompleto.split(' ')[0]}`}>
         {devedorSelecionado && (
           <FormularioTransacao 
             devedor={devedorSelecionado} 
@@ -414,7 +414,7 @@ export function Painel({
           <div className="w-6 h-1 bg-giro-primary rounded-full"></div>
           <span className="text-[10px] font-black uppercase tracking-[0.2em]">Giro Dashboard</span>
         </div>
-        <span className="text-[9px] font-bold">Versão 3.6.0</span>
+        <span className="text-[9px] font-bold">Versão {VERSAO_SISTEMA}</span>
       </footer>
     </div>
   );

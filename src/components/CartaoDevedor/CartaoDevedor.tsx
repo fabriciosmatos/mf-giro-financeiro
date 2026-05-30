@@ -54,6 +54,7 @@ export const CartaoDevedor: React.FC<CartaoDevedorProps> = ({
     tipoLabelData,
     dataTextoFormatada,
     urlWhatsApp,
+    saldoDevedorAtual,
   } = useCartaoDevedor({ devedor });
 
   const ehDonoDoCard = !devedor.ownerId || devedor.ownerId === auth.currentUser?.uid;
@@ -151,15 +152,12 @@ export const CartaoDevedor: React.FC<CartaoDevedorProps> = ({
           <div className="flex flex-col">
             <div className="flex items-center gap-1.5 mb-1">
               <span className="text-[7px] uppercase font-black text-giro-text-muted tracking-widest">Capital Emprestado</span>
-              <span className="text-[7px] font-black text-blue-700 bg-blue-50/80 px-1 py-0.5 rounded ring-1 ring-inset ring-blue-100/50 uppercase">
-                {devedor.taxaJurosMensal}%
-              </span>
             </div>
             <span className={cn(
               "text-xl font-black tracking-tight leading-none",
               statusInfo.isAtrasado ? "text-red-600" : "text-giro-primary"
             )}>
-              {formatarMoeda(devedor.saldoDevedorAtual)}
+              {formatarMoeda(saldoDevedorAtual)}
             </span>
           </div>
 
@@ -183,7 +181,7 @@ export const CartaoDevedor: React.FC<CartaoDevedorProps> = ({
             <div className="flex flex-col items-end min-w-0">
               <span className="text-[7px] uppercase font-bold text-red-600 mb-0.5 tracking-tight opacity-80 truncate">Total para Quitar</span>
               <span className="text-sm font-black text-red-700 leading-none tracking-tight">
-                {formatarMoeda(devedor.saldoDevedorAtual + jurosAcumulados)}
+                {formatarMoeda(saldoDevedorAtual + jurosAcumulados)}
               </span>
             </div>
           </div>
@@ -201,10 +199,10 @@ export const CartaoDevedor: React.FC<CartaoDevedorProps> = ({
       <div className="grid grid-cols-3 gap-2">
         <button 
           onClick={() => onPagar(devedor)}
-          disabled={devedor.saldoDevedorAtual === 0}
+          disabled={saldoDevedorAtual === 0}
           className={cn(
             "flex items-center justify-center gap-1.5 py-2 rounded-xl text-[9px] font-bold uppercase transition-colors pointer-events-auto cursor-pointer",
-            devedor.saldoDevedorAtual === 0 
+            saldoDevedorAtual === 0 
               ? "bg-gray-50 text-gray-400 cursor-not-allowed opacity-50 pointer-events-none" 
               : "bg-green-50 text-green-700 hover:bg-green-100"
           )}
@@ -215,7 +213,7 @@ export const CartaoDevedor: React.FC<CartaoDevedorProps> = ({
           onClick={() => onAporte(devedor)}
           className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors text-[9px] font-bold uppercase cursor-pointer"
         >
-          <ArrowUpCircle className="w-3.5 h-3.5" /> Aporte
+          <ArrowUpCircle className="w-3.5 h-3.5" /> Empréstimos
         </button>
         <button 
           onClick={() => onVerHistorico(devedor)}

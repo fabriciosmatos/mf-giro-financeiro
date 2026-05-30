@@ -6,8 +6,7 @@
 
 import { useState } from 'react';
 import { Devedor } from '../../types';
-import { calcularJurosDoPeriodo, calcularDetalhamento } from '../../lib/financeiro/juros';
-import { getInfoStatus } from '../../lib/financeiro/statusLogic';
+import { getInfoStatus, obterDadosFiscaisConsolidados } from '../../lib/financeiro/statusLogic';
 import { formatarMoeda } from '../../lib/utils';
 
 interface UseCartaoDevedorProps {
@@ -25,47 +24,35 @@ export function useCartaoDevedor({ devedor }: UseCartaoDevedorProps) {
     .substring(0, 2)
     .toUpperCase();
 
-  const diaVencimento = devedor.diaVencimento || (
-    devedor.dataCriacao?.toDate 
-      ? devedor.dataCriacao.toDate().getDate() 
-      : new Date(devedor.dataCriacao || '').getDate()
-  );
-
-  // Cálculo de datas de referência para juros e atraso
-  const dataReferencia = devedor.ultimoPagamento
-    ? (devedor.ultimoPagamento.toDate ? devedor.ultimoPagamento.toDate() : new Date(devedor.ultimoPagamento))
-    : (devedor.dataCriacao
-        ? (devedor.dataCriacao.toDate ? devedor.dataCriacao.toDate() : new Date(devedor.dataCriacao))
-        : new Date()
-      );
-
-  const detalhamento = calcularDetalhamento(
-    diaVencimento,
-    dataReferencia,
-    devedor.saldoDevedorAtual,
-    devedor.taxaJurosMensal
-  );
-
-  const mesesDevidos = detalhamento.mesesDevidos;
-  const jurosAcumulados = detalhamento.jurosAcumulados;
-  const jurosMensalSimples = calcularJurosDoPeriodo(devedor.saldoDevedorAtual, devedor.taxaJurosMensal);
+  const consol = obterDadosFiscaisConsolidados(devedor);
+  const mesesDevidos = consol.mesesDevidos;
+  const jurosAcumulados = consol.jurosAcumulados;
+  const jurosMensalSimples = consol.jurosMensalSimples;
 
   const statusInfo = getInfoStatus(devedor);
 
   // Lógica de exibição de data de vencimento/atraso
-  let dataExibicao = detalhamento.dataPrimeiroVencimento;
-  let tipoLabelData = 'Vencimento';
+  const temEmprestimos = devedor.emprestimos && devedor.emprestimos.length > 0;
+  let dataExibicao = devedor.dataCriacao 
+    ? (devedor.dataCriacao.toDate ? devedor.dataCriacao.toDate() : new Date(devedor.dataCriacao)) 
+    : new Date();
+  let tipoLabelData = 'Cadastrado em';
 
-  if (devedor.saldoDevedorAtual > 0) {
-    if (mesesDevidos > 0) {
-      dataExibicao = detalhamento.dataPrimeiroVencimento;
-      tipoLabelData = 'Atrasado desde';
-    } else if (statusInfo.label === 'Vence Hoje' || statusInfo.label === 'Vence Amanhã') {
-      dataExibicao = detalhamento.dataPrimeiroVencimento;
-      tipoLabelData = 'Vencimento';
-    } else {
-      dataExibicao = detalhamento.dataProximoVencimento;
-      tipoLabelData = 'Próximo';
+  if (temEmprestimos) {
+    dataExibicao = consol.dataPrimeiroVencimento;
+    tipoLabelData = 'Vencimento';
+
+    if (consol.saldoDevedorAtual > 0) {
+      if (mesesDevidos > 0) {
+        dataExibicao = consol.dataPrimeiroVencimento;
+        tipoLabelData = 'Atrasado desde';
+      } else if (statusInfo.label === 'Vence Hoje' || statusInfo.label === 'Vence Amanhã') {
+        dataExibicao = consol.dataPrimeiroVencimento;
+        tipoLabelData = 'Vencimento';
+      } else {
+        dataExibicao = consol.dataProximoVencimento;
+        tipoLabelData = 'Próximo';
+      }
     }
   }
 
@@ -83,11 +70,11 @@ export function useCartaoDevedor({ devedor }: UseCartaoDevedorProps) {
    */
   const obterMensagemWhatsApp = () => {
     const primeiroNome = devedor.nomeCompleto.split(' ')[0];
-    const saldo = formatarMoeda(devedor.saldoDevedorAtual);
+    const saldo = formatarMoeda(consol.saldoDevedorAtual);
     const juroMes = formatarMoeda(jurosMensalSimples);
     const acumulado = formatarMoeda(jurosAcumulados);
 
-    if (devedor.saldoDevedorAtual === 0) {
+    if (consol.saldoDevedorAtual === 0) {
       return `Olá ${primeiroNome}, parabéns! Seu saldo no Giro está quitado. Obrigado pela parceria!`;
     }
 
@@ -122,5 +109,6 @@ export function useCartaoDevedor({ devedor }: UseCartaoDevedorProps) {
     tipoLabelData,
     dataTextoFormatada,
     urlWhatsApp,
+    saldoDevedorAtual: consol.saldoDevedorAtual,
   };
 }

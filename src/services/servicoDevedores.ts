@@ -15,6 +15,7 @@ import {
 import { db, auth } from '../lib/firebase';
 import { Devedor } from '../types';
 import { servicoCarteiras } from './servicoCarteiras';
+import { servicoEmprestimos } from './servicoEmprestimos';
 
 export enum OperationType {
   CREATE = 'create',
@@ -54,8 +55,23 @@ export const servicoDevedores = {
         criadoPorNome: auth.currentUser?.displayName || auth.currentUser?.email || null,
       });
 
-      // Registrar transação inicial representativa do capital de giro
+      // Registrar transação inicial representativa do capital de giro e criar contrato isolado correspondente
       if (devedor.saldoDevedorAtual > 0) {
+        // Criar o contrato de empréstimo isolado
+        const empRef = await addDoc(collection(db, 'devedores', docRef.id, 'emprestimos'), {
+          valorBruto: devedor.saldoDevedorAtual,
+          saldoDevedor: devedor.saldoDevedorAtual,
+          taxaJurosMensal: devedor.taxaJurosMensal,
+          diaVencimento: devedor.diaVencimento || timestampCriacao.getDate(),
+          dataInicio: Timestamp.fromDate(timestampCriacao),
+          status: 'ATIVO',
+          origem: 'Cadastro Inicial',
+          observacao: 'Contrato gerado no cadastro inicial do cliente.',
+          ownerId: auth.currentUser?.uid,
+          totalLucroGerado: 0
+        });
+
+        // Registrar no historico
         await addDoc(collection(db, 'devedores', docRef.id, 'historico'), {
           data: Timestamp.fromDate(timestampCriacao),
           tipo: 'APORTE',
@@ -67,6 +83,7 @@ export const servicoDevedores = {
           ownerId: auth.currentUser?.uid,
           criadoPorEmail: auth.currentUser?.email || null,
           criadoPorNome: auth.currentUser?.displayName || auth.currentUser?.email || null,
+          emprestimoId: empRef.id,
         });
       }
 
@@ -113,7 +130,20 @@ export const servicoDevedores = {
       devedoresProprios.forEach(d => mapa.set(d.id!, d));
       devedoresCompartilhados.forEach(d => mapa.set(d.id!, d));
 
-      return Array.from(mapa.values()).sort((a, b) => 
+      const devedoresConsolidados = Array.from(mapa.values());
+
+      // Buscar os empréstimos correspondentes de cada um para popular a UI
+      const devedoresComEmprestimos = await Promise.all(
+        devedoresConsolidados.map(async (d) => {
+          const emprestimos = await servicoEmprestimos.listarEmprestimos(d.id!);
+          return {
+            ...d,
+            emprestimos,
+          };
+        })
+      );
+
+      return devedoresComEmprestimos.sort((a, b) => 
         a.nomeCompleto.localeCompare(b.nomeCompleto)
       );
     } catch (error) {
@@ -128,7 +158,12 @@ export const servicoDevedores = {
       const docRef = doc(db, 'devedores', id);
       const snapshot = await getDoc(docRef);
       if (snapshot.exists()) {
-        return { id: snapshot.id, ...snapshot.data() } as Devedor;
+        const d = { id: snapshot.id, ...snapshot.data() } as Devedor;
+        const emprestimos = await servicoEmprestimos.listarEmprestimos(d.id!);
+        return {
+          ...d,
+          emprestimos
+        };
       }
       return null;
     } catch (error) {

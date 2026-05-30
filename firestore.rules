@@ -21,17 +21,17 @@ service cloud.firestore {
     function hasAccessToCarteira(carteiraId) {
       return carteiraId != null &&
              (
-               get(/databases/$(database)/documents/carteiras/$(carteiraId)).data.ownerId == request.auth.uid ||
+               get(/databases/$(database)/documents/carteiras/$(carteiraId)).data.get('ownerId', '') == request.auth.uid ||
                (
-                 'emailsCompartilhados' in get(/databases/$(database)/documents/carteiras/$(carteiraId)).data &&
-                 request.auth.token.email in get(/databases/$(database)/documents/carteiras/$(carteiraId)).data.emailsCompartilhados
+                 get(/databases/$(database)/documents/carteiras/$(carteiraId)).data.get('emailsCompartilhados', null) != null &&
+                 request.auth.token.email in get(/databases/$(database)/documents/carteiras/$(carteiraId)).data.get('emailsCompartilhados', [])
                )
              );
     }
 
     function hasAccessToDevedor(devedorData) {
-      return devedorData.ownerId == request.auth.uid || 
-             ('carteiraId' in devedorData && hasAccessToCarteira(devedorData.carteiraId));
+      return devedorData.get('ownerId', '') == request.auth.uid || 
+             (devedorData.get('carteiraId', null) != null && hasAccessToCarteira(devedorData.get('carteiraId', null)));
     }
 
     function isValidDevedorShape(data) {
@@ -62,7 +62,23 @@ service cloud.firestore {
              (data.observacao == null || (data.observacao is string && data.observacao.size() <= 1000)) &&
              (!('criadoPorEmail' in data) || data.criadoPorEmail == null || data.criadoPorEmail is string) &&
              (!('criadoPorNome' in data) || data.criadoPorNome == null || data.criadoPorNome is string) &&
+             (!('emprestimoId' in data) || data.emprestimoId == null || data.emprestimoId is string) &&
              data.ownerId == request.auth.uid;
+    }
+
+    function isValidEmprestimo(data) {
+      return data.keys().hasAll(['valorBruto', 'saldoDevedor', 'taxaJurosMensal', 'diaVencimento', 'dataInicio', 'status', 'ownerId']) &&
+             data.valorBruto is number && data.valorBruto >= 0 &&
+             data.saldoDevedor is number && data.saldoDevedor >= 0 &&
+             data.taxaJurosMensal is number && data.taxaJurosMensal >= 0 &&
+             data.diaVencimento is number && data.diaVencimento >= 1 && data.diaVencimento <= 31 &&
+             data.status in ['ATIVO', 'QUITADO'] &&
+             data.ownerId == request.auth.uid &&
+             (!('dataVencimento' in data) || data.dataVencimento == null || data.dataVencimento is timestamp) &&
+             (!('ultimoPagamento' in data) || data.ultimoPagamento == null || data.ultimoPagamento is timestamp) &&
+             (!('observacao' in data) || data.observacao == null || (data.observacao is string && data.observacao.size() <= 1000)) &&
+             (!('origem' in data) || data.origem == null || (data.origem is string && data.origem.size() <= 200)) &&
+             (!('totalLucroGerado' in data) || data.totalLucroGerado is number);
     }
 
     function isValidCarteira(data) {
@@ -76,7 +92,7 @@ service cloud.firestore {
       allow create: if isSignedIn() && isValidId(devedorId) && 
                       isValidDevedorShape(request.resource.data) &&
                       request.resource.data.ownerId == request.auth.uid &&
-                      (request.resource.data.carteiraId == null || hasAccessToCarteira(request.resource.data.carteiraId));
+                      (request.resource.data.get('carteiraId', null) == null || hasAccessToCarteira(request.resource.data.get('carteiraId', null)));
       
       allow get: if isSignedIn() && hasAccessToDevedor(resource.data);
       allow list: if isSignedIn() && hasAccessToDevedor(resource.data);
@@ -86,21 +102,21 @@ service cloud.firestore {
                       isValidDevedorShape(request.resource.data) &&
                       request.resource.data.ownerId == resource.data.ownerId &&
                       request.resource.data.dataCriacao == resource.data.dataCriacao &&
-                      (request.resource.data.carteiraId == null || hasAccessToCarteira(request.resource.data.carteiraId)) &&
+                      (request.resource.data.get('carteiraId', null) == null || hasAccessToCarteira(request.resource.data.get('carteiraId', null))) &&
                       (
                         request.resource.data.get('carteiraId', null) == resource.data.get('carteiraId', null) ||
                         (
-                          (!('carteiraId' in resource.data) || resource.data.carteiraId == null) ?
+                          resource.data.get('carteiraId', null) == null ?
                             resource.data.ownerId == request.auth.uid :
-                            get(/databases/$(database)/documents/carteiras/$(resource.data.carteiraId)).data.ownerId == request.auth.uid
+                            get(/databases/$(database)/documents/carteiras/$(resource.data.get('carteiraId', ''))).data.ownerId == request.auth.uid
                         )
                       );
       
       allow delete: if isSignedIn() && hasAccessToDevedor(resource.data) &&
                       (
-                        (!('carteiraId' in resource.data) || resource.data.carteiraId == null) ? 
+                        resource.data.get('carteiraId', null) == null ? 
                           resource.data.ownerId == request.auth.uid :
-                          get(/databases/$(database)/documents/carteiras/$(resource.data.carteiraId)).data.ownerId == request.auth.uid
+                          get(/databases/$(database)/documents/carteiras/$(resource.data.get('carteiraId', ''))).data.ownerId == request.auth.uid
                       );
 
       match /historico/{transacaoId} {
@@ -114,17 +130,31 @@ service cloud.firestore {
                         isValidHistorico(request.resource.data) &&
                         request.resource.data.ownerId == resource.data.ownerId;
       }
+
+      match /emprestimos/{emprestimoId} {
+        allow create: if isSignedIn() && isValidId(emprestimoId) &&
+                        isValidEmprestimo(request.resource.data) &&
+                        hasAccessToDevedor(get(/databases/$(database)/documents/devedores/$(devedorId)).data);
+        allow get: if isSignedIn() && hasAccessToDevedor(get(/databases/$(database)/documents/devedores/$(devedorId)).data);
+        allow list: if isSignedIn() && hasAccessToDevedor(get(/databases/$(database)/documents/devedores/$(devedorId)).data);
+        allow update: if isSignedIn() &&
+                        hasAccessToDevedor(get(/databases/$(database)/documents/devedores/$(devedorId)).data) &&
+                        isValidEmprestimo(request.resource.data) &&
+                        request.resource.data.ownerId == resource.data.ownerId;
+        allow delete: if isSignedIn() &&
+                        get(/databases/$(database)/documents/devedores/$(devedorId)).data.ownerId == request.auth.uid;
+      }
     }
 
     match /carteiras/{carteiraId} {
       allow create: if isSignedIn() && isValidId(carteiraId) && isValidCarteira(request.resource.data) && request.resource.data.ownerId == request.auth.uid;
-      allow get: if isSignedIn() && (resource.data.ownerId == request.auth.uid || 
-                     ('emailsCompartilhados' in resource.data && request.auth.token.email in resource.data.emailsCompartilhados));
-      allow list: if isSignedIn() && (resource.data.ownerId == request.auth.uid || 
-                     ('emailsCompartilhados' in resource.data && request.auth.token.email in resource.data.emailsCompartilhados));
+      allow get: if isSignedIn() && (resource.data.get('ownerId', '') == request.auth.uid || 
+                     (resource.data.get('emailsCompartilhados', null) != null && request.auth.token.email in resource.data.get('emailsCompartilhados', [])));
+      allow list: if isSignedIn() && (resource.data.get('ownerId', '') == request.auth.uid || 
+                     (resource.data.get('emailsCompartilhados', null) != null && request.auth.token.email in resource.data.get('emailsCompartilhados', [])));
       allow update: if isSignedIn() && 
-                      (resource.data.ownerId == request.auth.uid || 
-                       ('emailsCompartilhados' in resource.data && request.auth.token.email in resource.data.emailsCompartilhados)) &&
+                      (resource.data.get('ownerId', '') == request.auth.uid || 
+                       (resource.data.get('emailsCompartilhados', null) != null && request.auth.token.email in resource.data.get('emailsCompartilhados', []))) &&
                       isValidCarteira(request.resource.data) &&
                       request.resource.data.ownerId == resource.data.ownerId &&
                       request.resource.data.dataCriacao == resource.data.dataCriacao;
@@ -132,7 +162,7 @@ service cloud.firestore {
     }
 
     match /autorizacoes/{autorizacaoId} {
-      allow read: if isSignedIn() && (resource == null || resource.data.email == request.auth.token.email);
+      allow read: if isSignedIn() && (resource == null || resource.data.get('email', '') == request.auth.token.email);
       allow write: if false;
     }
   }

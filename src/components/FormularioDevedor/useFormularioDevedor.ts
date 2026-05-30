@@ -31,14 +31,8 @@ export function useFormularioDevedor({
 
   const [nomeCompleto, setNomeCompleto] = useState(devedorParaEditar?.nomeCompleto || '');
   const [whatsapp, setWhatsapp] = useState(devedorParaEditar?.whatsapp || '');
-  const [taxaJuros, setTaxaJuros] = useState(devedorParaEditar?.taxaJurosMensal.toString() || '10');
-  const [saldoDevedor, setSaldoDevedor] = useState(devedorParaEditar?.saldoDevedorAtual.toString() || '');
   const [endereco, setEndereco] = useState(devedorParaEditar?.endereco || '');
   const [observacoes, setObservacoes] = useState(devedorParaEditar?.observacoes || '');
-  const [dataInicio, setDataInicio] = useState(new Date().toISOString().split('T')[0]);
-  const [diaVencimento, setDiaVencimento] = useState(
-    devedorParaEditar?.diaVencimento?.toString() || new Date().getDate().toString()
-  );
   const [carteiraId, setCarteiraId] = useState(
     devedorParaEditar?.carteiraId || (carteiraAtivaId === 'sem-carteira' ? '' : carteiraAtivaId) || ''
   );
@@ -58,8 +52,8 @@ export function useFormularioDevedor({
         await servicoDados.atualizarDevedor(devedorParaEditar.id, {
           nomeCompleto,
           whatsapp,
-          taxaJurosMensal: Number(taxaJuros),
-          diaVencimento: Number(diaVencimento),
+          taxaJurosMensal: devedorParaEditar.taxaJurosMensal || 0,
+          diaVencimento: devedorParaEditar.diaVencimento || 1,
           endereco: endereco || '',
           observacoes: observacoes || '',
           carteiraId: carteiraAlvo,
@@ -68,10 +62,10 @@ export function useFormularioDevedor({
         await servicoDados.criarDevedor({
           nomeCompleto,
           whatsapp,
-          taxaJurosMensal: Number(taxaJuros),
-          saldoDevedorAtual: Number(saldoDevedor),
-          diaVencimento: Number(diaVencimento),
-          dataCriacao: new Date(dataInicio + 'T12:00:00'),
+          taxaJurosMensal: 0,
+          saldoDevedorAtual: 0,
+          diaVencimento: 1,
+          dataCriacao: new Date(),
           endereco: endereco || '',
           observacoes: observacoes || '',
           ownerId: '',
@@ -92,18 +86,10 @@ export function useFormularioDevedor({
     setNomeCompleto,
     whatsapp,
     setWhatsapp,
-    taxaJuros,
-    setTaxaJuros,
-    saldoDevedor,
-    setSaldoDevedor,
     endereco,
     setEndereco,
     observacoes,
     setObservacoes,
-    dataInicio,
-    setDataInicio,
-    diaVencimento,
-    setDiaVencimento,
     carteiraId,
     setCarteiraId,
     carregando,

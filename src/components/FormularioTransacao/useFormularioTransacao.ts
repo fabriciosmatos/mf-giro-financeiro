@@ -1,13 +1,17 @@
 /**
- * Hook Customizado para gerenciar a lógica de transações do devedor (Aporte / Pagamento).
- * Todas as variáveis, funções e retornos estão rigorosamente em PORTUGUÊS.
+ * Hook Customizado useFormularioTransacao.
+ * Gerencia o estado e orquestra ações de Aporte/Novo Empréstimo e Recebimentos.
+ * Rigorosamente em português.
  */
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Devedor, TipoTransacao } from '../../types';
-import { obterJurosEstimados } from './FormularioTransacao.utils';
-import { decomporPagamento } from '../../lib/financeiro/amortizacao';
-import { gestorTransacoes } from '../../lib/gestorTransacoes';
+import { 
+  obterJurosEstimadosDevedor, 
+  decomporPagamentoMulticontrato 
+} from './FormularioTransacao.financeiro';
+import { FormularioTransacaoBanco } from './FormularioTransacao.banco';
+import { obterValorNumericoDeMascara, formatarNumeroParaMascara } from '../../lib/utils';
 
 interface UseFormularioTransacaoProps {
   devedor: Devedor;
@@ -23,46 +27,82 @@ export function useFormularioTransacao({
   const [dataTransacao, setDataTransacao] = useState(new Date().toISOString().split('T')[0]);
   const [carregando, setCarregando] = useState(false);
 
-  // Calcula juros estimado para inicialização opcional do input
-  const jurosEstimado = obterJurosEstimados(devedor);
+  // Seleção do contrato a abater (tipo === 'PAGAMENTO')
+  const ativos = (devedor.emprestimos || []).filter(e => e.status === 'ATIVO');
+  const [emprestimoIdSelecionado, setEmprestimoIdSelecionado] = useState(ativos[0]?.id || '');
 
-  // Valor inicial sugerido se for pagamento de juros
-  const [valor, setValor] = useState(tipo === 'PAGAMENTO' ? jurosEstimado.toString() : '');
+  // Valores iniciais e complementares para Novo Empréstimo (tipo === 'APORTE')
+  const defaultTaxa = devedor.taxaJurosMensal?.toString() || '10';
+  const defaultDiaVenc = devedor.diaVencimento?.toString() || new Date().getDate().toString();
+
+  const [taxaJurosMensal, setTaxaJurosMensal] = useState(defaultTaxa);
+  const [diaVencimento, setDiaVencimento] = useState(defaultDiaVenc);
+
+  // Juros estimado para pagamento (tipo === 'PAGAMENTO')
+  const jurosEstimado = obterJurosEstimadosDevedor(devedor, emprestimoIdSelecionado || undefined);
+
+  // Valor inicial sugerido se for recebimento/pagamento, senão vazio
+  const [valor, setValor] = useState('');
   const [observacao, setObservacao] = useState('');
 
-  // Decompõe o pagamento em juros amortizados
-  const { juros, amortizacao } = decomporPagamento(Number(valor) || 0, jurosEstimado);
+  // Atualiza o valor sugerido sempre que mudar de contrato ativo
+  useEffect(() => {
+    if (tipo === 'PAGAMENTO') {
+      const estimado = obterJurosEstimadosDevedor(devedor, emprestimoIdSelecionado || undefined);
+      setValor(formatarNumeroParaMascara(estimado));
+    }
+  }, [emprestimoIdSelecionado, tipo]);
+
+  // Calcula tempo real de decomposição de juros e amortização para feedback na tela
+  const decomposicaoRealTime = decomporPagamentoMulticontrato(
+    obterValorNumericoDeMascara(valor) || 0, 
+    devedor, 
+    emprestimoIdSelecionado || undefined
+  );
+  const juros = decomposicaoRealTime.jurosPagos;
+  const amortizacao = decomposicaoRealTime.amortizacaoPaga;
 
   /**
-   * Processa o submit de transações no gateway de dados correspondente
+   * Envia as alterações para o controlador de persistência atômica
    */
   const lidarComEnvio = async (evento: React.FormEvent) => {
     evento.preventDefault();
-    const valorNumerico = Number(valor);
+    const valorNumerico = obterValorNumericoDeMascara(valor);
     if (!valorNumerico || valorNumerico <= 0) {
-      alert('Por favor, insira um valor válido');
+      alert('Por favor, insira um valor válido maior do que zero.');
+      return;
+    }
+
+    if (tipo === 'PAGAMENTO' && ativos.length > 0 && !emprestimoIdSelecionado) {
+      alert('Por favor, selecione qual contrato será abatido.');
       return;
     }
 
     setCarregando(true);
     try {
       if (tipo === 'PAGAMENTO') {
-        await gestorTransacoes.processarPagamento(devedor, {
-          valor: valorNumerico,
+        await FormularioTransacaoBanco.registrarPagamentoNoBanco(
+          devedor,
+          valorNumerico,
+          dataTransacao,
           observacao,
-          data: dataTransacao,
-        });
+          emprestimoIdSelecionado || undefined
+        );
       } else {
-        await gestorTransacoes.processarAporte(devedor, {
-          valor: valorNumerico,
-          observacao,
-          data: dataTransacao,
-        });
+        // Trata Novo Empréstimo com taxas e vencimentos específicos salvos separadamente
+        await FormularioTransacaoBanco.criarNovoEmprestimoNoBanco(
+          devedor,
+          valorNumerico,
+          Number(taxaJurosMensal),
+          Number(diaVencimento),
+          dataTransacao,
+          observacao
+        );
       }
       onSuccess();
-    } catch (erro) {
-      console.error('Erro ao processar transação:', erro);
-      alert('Erro ao processar a transação financeira.');
+    } catch (erro: any) {
+      console.error('Erro ao processar transação financeira:', erro);
+      alert('Erro ao processar a operação: ' + (erro.message || 'Erro desconhecido.'));
     } finally {
       setCarregando(false);
     }
@@ -73,11 +113,20 @@ export function useFormularioTransacao({
     setDataTransacao,
     valor,
     setValor,
+    taxaJurosMensal,
+    setTaxaJurosMensal,
+    diaVencimento,
+    setDiaVencimento,
     observacao,
     setObservacao,
     carregando,
     juros,
     amortizacao,
     lidarComEnvio,
+    jurosEstimado,
+    detalheAlocacao: decomposicaoRealTime.detalhePorEmprestimo,
+    emprestimoIdSelecionado,
+    setEmprestimoIdSelecionado,
+    ativosDevedor: ativos,
   };
 }

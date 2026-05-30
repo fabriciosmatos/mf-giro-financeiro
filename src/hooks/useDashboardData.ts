@@ -166,8 +166,9 @@ export function useDashboardData() {
     filtrados = filtrados.filter(d => {
       const info = getInfoStatus(d);
       let status: StatusDebito;
+      const temEmprestimos = d.emprestimos && d.emprestimos.length > 0;
       
-      if (d.saldoDevedorAtual <= 0) {
+      if (d.saldoDevedorAtual <= 0 && temEmprestimos) {
         status = 'QUITADO';
       } else {
         status = info.isAtrasado ? 'ATRASO' : 'DIA';

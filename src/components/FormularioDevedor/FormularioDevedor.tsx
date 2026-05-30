@@ -7,6 +7,7 @@
 import React from 'react';
 import { Devedor, Carteira } from '../../types';
 import { useFormularioDevedor } from './useFormularioDevedor';
+import { BotaoConfirmarDuploClique } from '../BotaoConfirmarDuploClique';
 
 interface FormularioDevedorProps {
   onSuccess: () => void;
@@ -26,18 +27,10 @@ export function FormularioDevedor({
     setNomeCompleto,
     whatsapp,
     setWhatsapp,
-    taxaJuros,
-    setTaxaJuros,
-    saldoDevedor,
-    setSaldoDevedor,
     endereco,
     setEndereco,
     observacoes,
     setObservacoes,
-    dataInicio,
-    setDataInicio,
-    diaVencimento,
-    setDiaVencimento,
     carteiraId,
     setCarteiraId,
     carregando,
@@ -64,7 +57,7 @@ export function FormularioDevedor({
         />
       </div>
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 gap-4">
         <div>
           <label className="block text-sm font-semibold mb-2">WhatsApp</label>
           <input 
@@ -76,59 +69,7 @@ export function FormularioDevedor({
             required
           />
         </div>
-        <div>
-          <label className="block text-sm font-semibold mb-2">Taxa Juros (%)</label>
-          <input 
-            type="number" 
-            value={taxaJuros}
-            onChange={e => setTaxaJuros(e.target.value)}
-            className="w-full p-4 bg-giro-bg rounded-2xl border-0 focus:ring-2 focus:ring-giro-primary"
-            required
-          />
-        </div>
       </div>
-
-      <div className="grid grid-cols-2 gap-4">
-        <div>
-          <label className="block text-sm font-semibold mb-2">Dia do Vencimento</label>
-          <input 
-            type="number" 
-            min="1"
-            max="31"
-            value={diaVencimento}
-            onChange={e => setDiaVencimento(e.target.value)}
-            className="w-full p-4 bg-giro-bg rounded-2xl border-0 focus:ring-2 focus:ring-giro-primary"
-            required
-          />
-        </div>
-        {!devedorParaEditar && (
-          <div>
-            <label className="block text-sm font-semibold mb-2">Data de Início</label>
-            <input 
-              type="date" 
-              value={dataInicio}
-              onChange={e => setDataInicio(e.target.value)}
-              className="w-full p-4 bg-giro-bg rounded-2xl border-0 focus:ring-2 focus:ring-giro-primary"
-              required
-            />
-          </div>
-        )}
-      </div>
-
-      {!devedorParaEditar && (
-        <div>
-          <label className="block text-sm font-semibold mb-2">Saldo Devedor Inicial (R$)</label>
-          <input 
-            type="number" 
-            step="0.01"
-            value={saldoDevedor}
-            onChange={e => setSaldoDevedor(e.target.value)}
-            className="w-full text-xl font-bold p-4 bg-giro-bg rounded-2xl border-0 focus:ring-2 focus:ring-giro-primary font-mono"
-            placeholder="0,00"
-            required
-          />
-        </div>
-      )}
 
       <div>
         <label className="block text-sm font-semibold mb-2 tracking-tight">Carteira (Segmentação)</label>
@@ -170,9 +111,13 @@ export function FormularioDevedor({
         />
       </div>
 
-      <button disabled={carregando} type="submit" className="nu-button-primary w-full mt-2 cursor-pointer">
-        {carregando ? 'Salvando...' : devedorParaEditar ? 'Atualizar Cadastro' : 'Salvar Novo Devedor'}
-      </button>
+      <BotaoConfirmarDuploClique
+        originalText={devedorParaEditar ? 'Atualizar Cadastro' : 'Salvar Novo Devedor'}
+        confirmText="Confirmar clique duplo..."
+        loadingText="Salvando..."
+        carregando={carregando}
+        className="nu-button-primary w-full mt-2 cursor-pointer"
+      />
     </form>
   );
 }

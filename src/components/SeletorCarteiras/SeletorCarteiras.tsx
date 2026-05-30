@@ -13,7 +13,7 @@ import {
   calcularSaldoPorCarteira, 
   contarDevedoresPorCarteira 
 } from './SeletorCarteiras.utils';
-import { formatarMoeda } from '../../lib/utils';
+import { formatarMoeda, VERSAO_SISTEMA } from '../../lib/utils';
 import { 
   Wallet, 
   Plus, 
@@ -180,7 +180,7 @@ export function SeletorCarteiras({
         </div>
       </header>
 
-      <main className="flex-1 max-w-4xl w-full mx-auto px-6 pt-6">
+      <main className="flex-1 max-w-4xl w-full mx-auto px-6 pt-3.5">
         <div className="mb-8">
           <span className="text-[9px] font-black uppercase tracking-[0.2em] text-giro-primary bg-giro-primary/10 px-2.5 py-1 rounded-full">
             Selecione ou Crie
@@ -536,7 +536,7 @@ export function SeletorCarteiras({
           <div className="w-6 h-1 bg-giro-primary rounded-full"></div>
           <span className="text-[10px] font-black uppercase tracking-[0.2em]">Giro Dashboard</span>
         </div>
-        <span className="text-[9px] font-bold">Versão 3.6.0</span>
+        <span className="text-[9px] font-bold">Versão {VERSAO_SISTEMA}</span>
       </footer>
     </div>
   );

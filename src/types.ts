@@ -18,6 +18,22 @@ export interface Devedor {
   ultimaAlteracaoPorEmail?: string;
   ultimaAlteracaoPorNome?: string;
   ultimaAlteracaoData?: any;
+  emprestimos?: Emprestimo[];
+}
+
+export interface Emprestimo {
+  id?: string;
+  valorBruto: number;
+  saldoDevedor: number;
+  taxaJurosMensal: number;
+  diaVencimento: number;
+  dataInicio: any;
+  dataVencimento?: any;
+  status: 'ATIVO' | 'QUITADO';
+  origem?: string;
+  observacao?: string;
+  ultimoPagamento?: any;
+  totalLucroGerado?: number;
 }
 
 export interface Carteira {
