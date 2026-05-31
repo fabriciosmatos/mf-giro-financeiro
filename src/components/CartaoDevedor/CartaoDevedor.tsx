@@ -213,7 +213,7 @@ export const CartaoDevedor: React.FC<CartaoDevedorProps> = ({
           onClick={() => onAporte(devedor)}
           className="flex items-center justify-center gap-1.5 py-2 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 transition-colors text-[9px] font-bold uppercase cursor-pointer"
         >
-          <ArrowUpCircle className="w-3.5 h-3.5" /> Empréstimos
+          <ArrowUpCircle className="w-3.5 h-3.5" /> Emprestar
         </button>
         <button 
           onClick={() => onVerHistorico(devedor)}
