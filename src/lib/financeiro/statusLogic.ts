@@ -10,8 +10,19 @@ export interface InfoStatus {
 
 const extrairData = (campo: any): Date => {
   if (!campo) return new Date();
-  if (campo.toDate) return campo.toDate();
-  return new Date(campo);
+  if (campo instanceof Date) return campo;
+  if (typeof campo.toDate === 'function') return campo.toDate();
+  if (campo.seconds !== undefined && campo.seconds !== null) {
+    return new Date(Number(campo.seconds) * 1000);
+  }
+  if (campo._seconds !== undefined && campo._seconds !== null) {
+    return new Date(Number(campo._seconds) * 1000);
+  }
+  const dat = new Date(campo);
+  if (isNaN(dat.getTime())) {
+    return new Date();
+  }
+  return dat;
 };
 
 export function obterDadosFiscaisConsolidados(devedor: Devedor) {

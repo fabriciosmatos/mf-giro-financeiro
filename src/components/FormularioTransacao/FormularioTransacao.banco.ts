@@ -11,7 +11,7 @@ import {
 } from 'firebase/firestore';
 import { db, auth } from '../../lib/firebase';
 import { Devedor, Historico, Emprestimo } from '../../types';
-import { decomporPagamentoMulticontrato } from './FormularioTransacao.financeiro';
+import { decomporPagamentoMulticontrato, TipoAmortizacao } from './FormularioTransacao.financeiro';
 
 export const FormularioTransacaoBanco = {
   /**
@@ -102,13 +102,16 @@ export const FormularioTransacaoBanco = {
     valorPago: number,
     dataPagamentoString: string,
     observacao: string,
-    emprestimoIdAlvo?: string
+    emprestimoIdAlvo?: string,
+    tipoAmortizacao: TipoAmortizacao = 'automatico'
   ): Promise<void> {
     if (!auth.currentUser) throw new Error('Usuário não autenticado');
     if (!devedor.id) throw new Error('ID do devedor inválido');
 
+    const dataRefObj = dataPagamentoString ? new Date(dataPagamentoString + 'T12:00:00') : undefined;
+
     // 1. Calcular a alocação do pagamento de forma pura usando a engine financeira
-    const resultadoAlocacao = decomporPagamentoMulticontrato(valorPago, devedor, emprestimoIdAlvo);
+    const resultadoAlocacao = decomporPagamentoMulticontrato(valorPago, devedor, emprestimoIdAlvo, tipoAmortizacao, dataRefObj);
 
     const devedorRef = doc(db, 'devedores', devedor.id);
     const historicoColRef = collection(db, 'devedores', devedor.id, 'historico');

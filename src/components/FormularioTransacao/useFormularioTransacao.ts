@@ -8,7 +8,8 @@ import React, { useState, useEffect } from 'react';
 import { Devedor, TipoTransacao } from '../../types';
 import { 
   obterJurosEstimadosDevedor, 
-  decomporPagamentoMulticontrato 
+  decomporPagamentoMulticontrato,
+  TipoAmortizacao
 } from './FormularioTransacao.financeiro';
 import { FormularioTransacaoBanco } from './FormularioTransacao.banco';
 import { obterValorNumericoDeMascara, formatarNumeroParaMascara } from '../../lib/utils';
@@ -26,6 +27,7 @@ export function useFormularioTransacao({
 }: UseFormularioTransacaoProps) {
   const [dataTransacao, setDataTransacao] = useState(new Date().toISOString().split('T')[0]);
   const [carregando, setCarregando] = useState(false);
+  const [tipoAmortizacao, setTipoAmortizacao] = useState<TipoAmortizacao>('automatico');
 
   // Seleção do contrato a abater (tipo === 'PAGAMENTO')
   const ativos = (devedor.emprestimos || []).filter(e => e.status === 'ATIVO');
@@ -38,26 +40,32 @@ export function useFormularioTransacao({
   const [taxaJurosMensal, setTaxaJurosMensal] = useState(defaultTaxa);
   const [diaVencimento, setDiaVencimento] = useState(defaultDiaVenc);
 
+  // Conversão segura da data da transação para objeto Date de cálculo retroativo
+  const dataRefObj = dataTransacao ? new Date(dataTransacao + 'T12:00:00') : undefined;
+
   // Juros estimado para pagamento (tipo === 'PAGAMENTO')
-  const jurosEstimado = obterJurosEstimadosDevedor(devedor, emprestimoIdSelecionado || undefined);
+  const jurosEstimado = obterJurosEstimadosDevedor(devedor, emprestimoIdSelecionado || undefined, tipoAmortizacao, dataRefObj);
 
   // Valor inicial sugerido se for recebimento/pagamento, senão vazio
   const [valor, setValor] = useState('');
   const [observacao, setObservacao] = useState('');
 
-  // Atualiza o valor sugerido sempre que mudar de contrato ativo
+  // Atualiza o valor sugerido sempre que mudar de contrato ativo, modo de amortização ou data de pagamento
   useEffect(() => {
     if (tipo === 'PAGAMENTO') {
-      const estimado = obterJurosEstimadosDevedor(devedor, emprestimoIdSelecionado || undefined);
+      const dataRef = dataTransacao ? new Date(dataTransacao + 'T12:00:00') : undefined;
+      const estimado = obterJurosEstimadosDevedor(devedor, emprestimoIdSelecionado || undefined, tipoAmortizacao, dataRef);
       setValor(formatarNumeroParaMascara(estimado));
     }
-  }, [emprestimoIdSelecionado, tipo]);
+  }, [emprestimoIdSelecionado, tipo, tipoAmortizacao, dataTransacao, devedor]);
 
   // Calcula tempo real de decomposição de juros e amortização para feedback na tela
   const decomposicaoRealTime = decomporPagamentoMulticontrato(
     obterValorNumericoDeMascara(valor) || 0, 
     devedor, 
-    emprestimoIdSelecionado || undefined
+    emprestimoIdSelecionado || undefined,
+    tipoAmortizacao,
+    dataRefObj
   );
   const juros = decomposicaoRealTime.jurosPagos;
   const amortizacao = decomposicaoRealTime.amortizacaoPaga;
@@ -68,8 +76,13 @@ export function useFormularioTransacao({
   const lidarComEnvio = async (evento: React.FormEvent) => {
     evento.preventDefault();
     const valorNumerico = obterValorNumericoDeMascara(valor);
-    if (!valorNumerico || valorNumerico <= 0) {
-      alert('Por favor, insira um valor válido maior do que zero.');
+    if (!valorNumerico && valorNumerico !== 0) {
+      alert('Por favor, insira um valor válido.');
+      return;
+    }
+
+    if (valorNumerico < 0) {
+      alert('Por favor, insira um valor maior ou igual a zero.');
       return;
     }
 
@@ -86,7 +99,8 @@ export function useFormularioTransacao({
           valorNumerico,
           dataTransacao,
           observacao,
-          emprestimoIdSelecionado || undefined
+          emprestimoIdSelecionado || undefined,
+          tipoAmortizacao
         );
       } else {
         // Trata Novo Empréstimo com taxas e vencimentos específicos salvos separadamente
@@ -128,5 +142,7 @@ export function useFormularioTransacao({
     emprestimoIdSelecionado,
     setEmprestimoIdSelecionado,
     ativosDevedor: ativos,
+    tipoAmortizacao,
+    setTipoAmortizacao,
   };
 }

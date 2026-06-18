@@ -9,9 +9,9 @@ export interface DetalheCobranca {
   jurosAcumulados: number;
 }
 
-export function calcularDetalhamento(diaVencimento: number, dataReferencia: Date, saldoAtual: number, taxaMensal: number): DetalheCobranca {
-  const hoje = new Date();
-  hoje.setHours(0, 0, 0, 0);
+export function calcularDetalhamento(diaVencimento: number, dataReferencia: Date, saldoAtual: number, taxaMensal: number, dataAte?: Date): DetalheCobranca {
+  const limite = dataAte ? new Date(dataAte) : new Date();
+  limite.setHours(23, 59, 59, 999); // Garante incluir o dia inteiro de referência
   
   const ref = new Date(dataReferencia);
   ref.setHours(0, 0, 0, 0);
@@ -29,8 +29,8 @@ export function calcularDetalhamento(diaVencimento: number, dataReferencia: Date
   let meses = 0;
   let cursor = new Date(dataCiclo);
 
-  // Consideramos atrasado se o vencimento for ANTERIOR a hoje (já passou o dia)
-  while (cursor < hoje && saldoAtual > 0) {
+  // Consideramos atrasado / devido se o vencimento for anterior ou igual ao limite de cálculo
+  while (cursor <= limite && saldoAtual > 0) {
     meses++;
     cursor.setMonth(cursor.getMonth() + 1);
   }
