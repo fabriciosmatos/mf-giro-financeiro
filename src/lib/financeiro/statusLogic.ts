@@ -91,14 +91,7 @@ export function getDataOrdenacao(devedor: Devedor): number {
   const emprestimos = devedor.emprestimos || [];
   const ativos = emprestimos.filter(e => e.status === 'ATIVO');
   if (ativos.length > 0) {
-    let minTime = Infinity;
-    ativos.forEach(e => {
-      const ref = extrairData(e.ultimoPagamento || e.dataInicio);
-      if (ref.getTime() < minTime) {
-        minTime = ref.getTime();
-      }
-    });
-    return minTime;
+    return consol.dataPrimeiroVencimento.getTime();
   }
 
   const dataReferencia = devedor.ultimoPagamento 

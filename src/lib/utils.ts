@@ -1,7 +1,7 @@
 import { clsx, type ClassValue } from 'clsx';
 import { twMerge } from 'tailwind-merge';
 
-export const VERSAO_SISTEMA = '4.2.4';
+export const VERSAO_SISTEMA = '4.2.5';
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
