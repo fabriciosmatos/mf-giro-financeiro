@@ -19,9 +19,11 @@ export function calcularDetalhamento(diaVencimento: number, dataReferencia: Date
   // O primeiro vencimento após a referência
   let dataCiclo = new Date(ref.getFullYear(), ref.getMonth(), diaVencimento);
   
-  // Se o dia do ciclo for na mesma data ou anterior à referência, 
-  // o primeiro vencimento real é no mês seguinte.
-  if (dataCiclo <= ref) {
+  // Se o dia do ciclo for na mesma data ou anterior à referência,
+  // ou se o pagamento ocorreu na janela de liquidação do ciclo daquele mês (ex: pagou dia 17 e vence dia 18),
+  // o ciclo do mês já foi coberto e o primeiro vencimento real em aberto é no mês seguinte.
+  const diffDiasCicloRef = Math.round((dataCiclo.getTime() - ref.getTime()) / (1000 * 60 * 60 * 24));
+  if (diffDiasCicloRef <= 15) {
     dataCiclo.setMonth(dataCiclo.getMonth() + 1);
   }
 

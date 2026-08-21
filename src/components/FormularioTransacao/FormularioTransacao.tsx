@@ -196,11 +196,18 @@ export function FormularioTransacao({ devedor, tipo, onSuccess }: FormularioTran
                 required
               >
                 <option value="" disabled>Selecione o contrato ativo...</option>
-                {ativosDevedor.map((emp, idx) => (
-                  <option key={emp.id} value={emp.id}>
-                    Contrato #{emp.id?.slice(-4) || (idx + 1)} (Saldo: {formatarMoeda(emp.saldoDevedor)} | Juros: {emp.taxaJurosMensal}%)
-                  </option>
-                ))}
+                {ativosDevedor.map((emp, idx) => {
+                  const dataInicioObj = extrairData(emp.dataInicio);
+                  const dataFormatada = dataInicioObj ? formatarData(dataInicioObj) : '';
+                  const infoData = dataFormatada ? `Data: ${dataFormatada} | ` : '';
+                  const diaVenc = emp.diaVencimento || devedor.diaVencimento;
+
+                  return (
+                    <option key={emp.id} value={emp.id}>
+                      Contrato #{emp.id?.slice(-4) || (idx + 1)} — {infoData}Venc. Todo Dia {diaVenc} (Saldo: {formatarMoeda(emp.saldoDevedor)} | Juros: {emp.taxaJurosMensal}%)
+                    </option>
+                  );
+                })}
               </select>
             )}
           </div>

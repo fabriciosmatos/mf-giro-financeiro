@@ -63,6 +63,10 @@ service cloud.firestore {
              (!('criadoPorEmail' in data) || data.criadoPorEmail == null || data.criadoPorEmail is string) &&
              (!('criadoPorNome' in data) || data.criadoPorNome == null || data.criadoPorNome is string) &&
              (!('emprestimoId' in data) || data.emprestimoId == null || data.emprestimoId is string) &&
+             (!('diaVencimento' in data) || data.diaVencimento == null || (data.diaVencimento is number && data.diaVencimento >= 1 && data.diaVencimento <= 31)) &&
+             (!('dataVencimento' in data) || data.dataVencimento == null || data.dataVencimento is timestamp) &&
+             (!('descricaoContrato' in data) || data.descricaoContrato == null || (data.descricaoContrato is string && data.descricaoContrato.size() <= 500)) &&
+             (!('detalheContratos' in data) || data.detalheContratos == null || data.detalheContratos is list) &&
              data.ownerId == request.auth.uid;
     }
 

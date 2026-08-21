@@ -83,11 +83,13 @@ export const FormularioTransacaoBanco = {
         saldoRestante: novoSaldoDevedorAtual,
         valorJuros: 0,
         valorAmortizado: 0,
-        observacao: observacao || 'Aporte/Empréstimo concedido',
+        observacao: observacao || `Aporte/Empréstimo concedido (Contrato Venc. Dia ${diaVenc})`,
         ownerId: auth.currentUser?.uid,
         criadoPorEmail: auth.currentUser?.email || null,
         criadoPorNome: auth.currentUser?.displayName || auth.currentUser?.email || null,
         emprestimoId: novoEmprestimoDocRef.id,
+        diaVencimento: diaVenc,
+        descricaoContrato: `Contrato Venc. Dia ${diaVenc} (R$ ${valor.toLocaleString('pt-BR', { minimumFractionDigits: 2, maximumFractionDigits: 2 })})`,
       };
 
       transacao.set(novoHistoricoDocRef, historicoPayload);
@@ -167,20 +169,62 @@ export const FormularioTransacaoBanco = {
         ultimaAlteracaoData: Timestamp.now()
       });
 
-      // 5. Escrever a linha centralizada de histórico de transação
+      // 5. Preparar dados detalhados dos contratos afetados
+      const detalheContratosSalvar = resultadoAlocacao.detalhePorEmprestimo.map(aloc => {
+        const emp = devedor.emprestimos?.find(e => e.id === aloc.emprestimoId);
+        return {
+          emprestimoId: aloc.emprestimoId,
+          diaVencimento: emp?.diaVencimento || devedor.diaVencimento || 1,
+          valorBruto: emp?.valorBruto || 0,
+          jurosPagos: aloc.jurosPagos,
+          amortizado: aloc.amortizado,
+          saldoRestante: aloc.saldoDevedorRestante,
+        };
+      });
+
+      let empIdRef: string | null = null;
+      let diaVencRef: number | null = null;
+      let descContratoRef: string | null = null;
+
+      if (emprestimoIdAlvo) {
+        const emp = devedor.emprestimos?.find(e => e.id === emprestimoIdAlvo);
+        empIdRef = emprestimoIdAlvo;
+        diaVencRef = emp?.diaVencimento || null;
+        descContratoRef = emp ? `Contrato Venc. Dia ${emp.diaVencimento} (Original: R$ ${emp.valorBruto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})` : null;
+      } else if (resultadoAlocacao.detalhePorEmprestimo.length === 1) {
+        const itemUnico = resultadoAlocacao.detalhePorEmprestimo[0];
+        const emp = devedor.emprestimos?.find(e => e.id === itemUnico.emprestimoId);
+        empIdRef = itemUnico.emprestimoId;
+        diaVencRef = emp?.diaVencimento || null;
+        descContratoRef = emp ? `Contrato Venc. Dia ${emp.diaVencimento} (Original: R$ ${emp.valorBruto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})` : null;
+      } else if (resultadoAlocacao.detalhePorEmprestimo.length > 1) {
+        const diasUnicos = Array.from(new Set(detalheContratosSalvar.map(d => d.diaVencimento).filter(Boolean)));
+        descContratoRef = `Multicontratos (Venc. Dias: ${diasUnicos.join(', ')})`;
+      }
+
+      const infoContratoTexto = descContratoRef ? ` [${descContratoRef}]` : '';
+
+      // 6. Escrever a linha centralizada de histórico de transação
       const novoHistoricoDocRef = doc(historicoColRef);
-      const historicoPayload = {
+      const historicoPayload: any = {
         data: timestampPagamento,
         tipo: 'PAGAMENTO',
         valorTotal: valorPago,
         saldoRestante: novoSaldoDevedorAtual,
         valorJuros: resultadoAlocacao.jurosPagos,
         valorAmortizado: resultadoAlocacao.amortizacaoPaga,
-        observacao: observacao || `Recebimento amortizado (Juros: R$ ${resultadoAlocacao.jurosPagos} | Amort.: R$ ${resultadoAlocacao.amortizacaoPaga})`,
+        observacao: observacao 
+          ? `${observacao}${infoContratoTexto}` 
+          : `Recebimento amortizado (Juros: R$ ${resultadoAlocacao.jurosPagos} | Amort.: R$ ${resultadoAlocacao.amortizacaoPaga})${infoContratoTexto}`,
         ownerId: auth.currentUser?.uid,
         criadoPorEmail: auth.currentUser?.email || null,
         criadoPorNome: auth.currentUser?.displayName || auth.currentUser?.email || null,
+        detalheContratos: detalheContratosSalvar,
       };
+
+      if (empIdRef) historicoPayload.emprestimoId = empIdRef;
+      if (diaVencRef) historicoPayload.diaVencimento = diaVencRef;
+      if (descContratoRef) historicoPayload.descricaoContrato = descContratoRef;
 
       transacao.set(novoHistoricoDocRef, historicoPayload);
     });

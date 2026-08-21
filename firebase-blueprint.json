@@ -39,7 +39,10 @@
         "valorJuros": { "type": "number" },
         "valorAmortizado": { "type": "number" },
         "saldoRestante": { "type": "number" },
-        "observacao": { "type": "string" }
+        "observacao": { "type": "string" },
+        "emprestimoId": { "type": "string" },
+        "diaVencimento": { "type": "number" },
+        "descricaoContrato": { "type": "string" }
       },
       "required": ["data", "tipo", "valorTotal", "saldoRestante"]
     }

@@ -8,25 +8,36 @@ interface UseHistoricoListaProps {
 
 export function useHistoricoLista({ devedor }: UseHistoricoListaProps) {
   const [historico, setHistorico] = useState<Historico[]>([]);
+  const [devedorAtual, setDevedorAtual] = useState<Devedor>(devedor);
   const [carregando, setCarregando] = useState(true);
 
-  useEffect(() => {
-    async function carregar() {
-      if (!devedor.id) return;
-      try {
-        const dados = await servicoDados.listarHistorico(devedor.id);
-        setHistorico(dados);
-      } catch (erro) {
-        console.error('Erro ao listar historico:', erro);
-      } finally {
-        setCarregando(false);
+  async function recarregar() {
+    if (!devedor.id) return;
+    try {
+      const [dados, devedorDoc] = await Promise.all([
+        servicoDados.listarHistorico(devedor.id),
+        servicoDados.buscarDevedor(devedor.id)
+      ]);
+      setHistorico(dados);
+      if (devedorDoc) {
+        setDevedorAtual(devedorDoc);
       }
+    } catch (erro) {
+      console.error('Erro ao listar historico:', erro);
+    } finally {
+      setCarregando(false);
     }
-    carregar();
+  }
+
+  useEffect(() => {
+    setDevedorAtual(devedor);
+    recarregar();
   }, [devedor.id]);
 
   return {
     historico,
+    devedorAtual,
     carregando,
+    recarregar,
   };
 }

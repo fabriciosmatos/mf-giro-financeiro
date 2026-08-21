@@ -47,6 +47,15 @@ export interface Carteira {
 
 export type TipoTransacao = 'PAGAMENTO' | 'APORTE';
 
+export interface DetalheContratoHistorico {
+  emprestimoId: string;
+  diaVencimento?: number;
+  valorBruto?: number;
+  jurosPagos: number;
+  amortizado: number;
+  saldoRestante: number;
+}
+
 export interface Historico {
   id?: string;
   data: any;
@@ -58,4 +67,9 @@ export interface Historico {
   observacao: string;
   criadoPorEmail?: string;
   criadoPorNome?: string;
+  emprestimoId?: string;
+  diaVencimento?: number;
+  dataVencimento?: any;
+  descricaoContrato?: string;
+  detalheContratos?: DetalheContratoHistorico[];
 }

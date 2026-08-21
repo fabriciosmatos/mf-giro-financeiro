@@ -391,7 +391,7 @@ export function Painel({
 
       <PainelRetratil isOpen={modalHistorico} onClose={() => setModalHistorico(false)} title="Histórico de Lançamentos">
         {devedorSelecionado && (
-          <HistoricoLista devedor={devedorSelecionado} />
+          <HistoricoLista devedor={devedorSelecionado} onAtualizacao={refresh} />
         )}
       </PainelRetratil>
 
