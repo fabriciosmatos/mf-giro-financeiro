@@ -6,7 +6,8 @@
 
 import { useState } from 'react';
 import { Devedor } from '../../types';
-import { getInfoStatus, obterDadosFiscaisConsolidados } from '../../lib/financeiro/statusLogic';
+import { getInfoStatus, obterDadosFiscaisConsolidados, obterDataBaseReferencia } from '../../lib/financeiro/statusLogic';
+import { extrairData } from '../FormularioTransacao/FormularioTransacao.financeiro';
 import { formatarMoeda } from '../../lib/utils';
 
 interface UseCartaoDevedorProps {
@@ -30,6 +31,33 @@ export function useCartaoDevedor({ devedor }: UseCartaoDevedorProps) {
   const jurosMensalSimples = consol.jurosMensalSimples;
 
   const statusInfo = getInfoStatus(devedor);
+
+  // LOGS DE AUDITORIA E DIAGNÓSTICO FISCAL EM TEMPO REAL
+  try {
+    const emprestimos = devedor.emprestimos || [];
+    const ativos = emprestimos.filter(e => e.status === 'ATIVO');
+    
+    // Se estiver em atraso ou se o nome for Viana, emitir log estruturado completo
+    if (consol.mesesDevidos > 0 || devedor.nomeCompleto.toLowerCase().includes('viana')) {
+      console.group(`🔍 [AUDITORIA FISCAL] ${devedor.nomeCompleto} (Status: ${statusInfo.label})`);
+      console.log('📊 Consolidados:', {
+        saldoDevedorAtual: consol.saldoDevedorAtual,
+        jurosMensalSimples: consol.jurosMensalSimples,
+        jurosAcumulados: consol.jurosAcumulados,
+        mesesDevidos: consol.mesesDevidos,
+        dataProximoVencimento: consol.dataProximoVencimento,
+        dataPrimeiroVencimento: consol.dataPrimeiroVencimento,
+      });
+      console.log(`📋 Contratos Ativos (${ativos.length}):`);
+      ativos.forEach((emp, i) => {
+        const ref = obterDataBaseReferencia(emp);
+        console.log(`  [Contrato ${i + 1}] ID: ${emp.id || 'sem-id'} | Saldo: R$ ${emp.saldoDevedor} | Juros: ${emp.taxaJurosMensal}% | Venc. Dia: ${emp.diaVencimento} | Data Base Ref: ${ref.toLocaleDateString('pt-BR')} | Último Pagto: ${emp.ultimoPagamento ? 'Sim' : 'Não'}`);
+      });
+      console.groupEnd();
+    }
+  } catch (err) {
+    console.error('Erro nos logs de auditoria:', err);
+  }
 
   // Lógica de exibição de data de vencimento/atraso
   const temEmprestimos = devedor.emprestimos && devedor.emprestimos.length > 0;

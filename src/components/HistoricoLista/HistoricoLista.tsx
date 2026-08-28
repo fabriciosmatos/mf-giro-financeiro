@@ -1,11 +1,23 @@
 import React, { useState } from 'react';
 import { Devedor, Emprestimo, Historico } from '../../types';
 import { formatarMoeda, formatarData, cn } from '../../lib/utils';
-import { Download, FileText, Landmark, CalendarClock, Calendar, CheckCircle2, AlertCircle, Pencil, RefreshCw } from 'lucide-react';
+import { 
+  Download, 
+  FileText, 
+  Landmark, 
+  CalendarClock, 
+  Calendar, 
+  CheckCircle2, 
+  AlertCircle, 
+  Pencil, 
+  RefreshCw,
+  Info
+} from 'lucide-react';
 import { gerarCSVHistorico } from '../../services/servicoExportacao';
 import { useHistoricoLista } from './useHistoricoLista';
 import { extrairData } from '../FormularioTransacao/FormularioTransacao.financeiro';
 import { calcularDetalhamento } from '../../lib/financeiro/juros';
+import { obterDadosFiscaisConsolidados, getInfoStatus, obterDataBaseReferencia } from '../../lib/financeiro/statusLogic';
 import { ModalEditarHistorico } from './ModalEditarHistorico';
 import { servicoDados } from '../../services/servicoDados';
 
@@ -97,6 +109,10 @@ export function HistoricoLista({ devedor, onAtualizacao }: HistoricoListaProps) 
   const [historicoParaEditar, setHistoricoParaEditar] = useState<Historico | null>(null);
   const [sincronizando, setSincronizando] = useState(false);
 
+  const emprestimos = devedorAtual.emprestimos || [];
+  const ativos = emprestimos.filter(e => e.status === 'ATIVO');
+  const quitados = emprestimos.filter(e => e.status === 'QUITADO');
+
   const handleSincronizarContratos = async () => {
     if (!devedor.id) return;
     setSincronizando(true);
@@ -114,10 +130,6 @@ export function HistoricoLista({ devedor, onAtualizacao }: HistoricoListaProps) 
   if (carregando) {
     return <div className="p-10 text-center text-giro-text-muted">Carregando histórico...</div>;
   }
-
-  const emprestimos = devedorAtual.emprestimos || [];
-  const ativos = emprestimos.filter(e => e.status === 'ATIVO');
-  const quitados = emprestimos.filter(e => e.status === 'QUITADO');
 
   return (
     <div className="flex flex-col gap-4 text-giro-text">
@@ -251,6 +263,7 @@ export function HistoricoLista({ devedor, onAtualizacao }: HistoricoListaProps) 
           </div>
         </div>
       ) : (
+        /* ABA DE CONTRATOS */
         <div className="flex flex-col gap-4">
           <div className="flex items-center justify-between">
             <span className="text-xs font-bold text-giro-text-muted">Total de {emprestimos.length} contratos</span>
@@ -287,7 +300,7 @@ export function HistoricoLista({ devedor, onAtualizacao }: HistoricoListaProps) 
 
                 // Cálculo das métricas fiscais e próximo vencimento para este contrato específico
                 const diaVenc = e.diaVencimento || 1;
-                const ref = extrairData(e.ultimoPagamento || e.dataInicio);
+                const ref = obterDataBaseReferencia(e);
                 const det = calcularDetalhamento(diaVenc, ref, e.saldoDevedor, e.taxaJurosMensal);
                 const proximoVencimento = det.dataProximoVencimento;
 
@@ -428,3 +441,4 @@ export function HistoricoLista({ devedor, onAtualizacao }: HistoricoListaProps) 
     </div>
   );
 }
+

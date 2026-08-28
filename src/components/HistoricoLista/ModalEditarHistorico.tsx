@@ -32,11 +32,27 @@ export function ModalEditarHistorico({
   const [diaVencimentoPersonalizado, setDiaVencimentoPersonalizado] = useState<number | string>(
     historico.diaVencimento || ''
   );
+  const [valorTotal, setValorTotal] = useState<number | string>(historico.valorTotal || 0);
+  const [valorJuros, setValorJuros] = useState<number | string>(historico.valorJuros || 0);
+  const [valorAmortizado, setValorAmortizado] = useState<number | string>(historico.valorAmortizado || 0);
   const [observacao, setObservacao] = useState(historico.observacao || '');
   const [salvando, setSalvando] = useState(false);
   const [erro, setErro] = useState<string | null>(null);
 
   const emprestimos = devedor.emprestimos || [];
+
+  // Ajustes rápidos de composição financeira
+  const handleApenasJuros = () => {
+    const total = Number(valorTotal) || 0;
+    setValorJuros(total);
+    setValorAmortizado(0);
+  };
+
+  const handleApenasAmortizacao = () => {
+    const total = Number(valorTotal) || 0;
+    setValorJuros(0);
+    setValorAmortizado(total);
+  };
 
   // Quando o usuário seleciona um contrato na lista
   const handleSelecionarContrato = (empId: string) => {
@@ -69,25 +85,38 @@ export function ModalEditarHistorico({
       let diaVencRef: number | null = null;
       let descContratoRef: string | null = null;
 
+      const vTotalNum = Number(valorTotal) || 0;
+      const vJurosNum = Number(valorJuros) || 0;
+      const vAmortNum = Number(valorAmortizado) || 0;
+
+      const payloadAtualizacao: Partial<Historico> = {
+        data: timestampFirebase,
+        observacao: observacao.trim(),
+        valorTotal: vTotalNum,
+        valorJuros: vJurosNum,
+        valorAmortizado: vAmortNum,
+      };
+
       if (empIdRef) {
         const emp = emprestimos.find(e => e.id === empIdRef);
+        payloadAtualizacao.emprestimoId = empIdRef;
         if (emp) {
           diaVencRef = emp.diaVencimento;
           descContratoRef = `Contrato Venc. Dia ${emp.diaVencimento} (R$ ${emp.valorBruto.toLocaleString('pt-BR', { minimumFractionDigits: 2 })})`;
         }
+        payloadAtualizacao.detalheContratos = [{
+          emprestimoId: empIdRef,
+          diaVencimento: diaVencRef || 1,
+          valorBruto: emp?.valorBruto || 0,
+          jurosPagos: vJurosNum,
+          amortizado: vAmortNum,
+          saldoRestante: Math.max(0, (emp?.saldoDevedor || emp?.valorBruto || 0) - vAmortNum)
+        }];
       } else if (diaVencimentoPersonalizado) {
         diaVencRef = Number(diaVencimentoPersonalizado);
         descContratoRef = `Contrato Venc. Dia ${diaVencRef}`;
       }
 
-      const payloadAtualizacao: Partial<Historico> = {
-        data: timestampFirebase,
-        observacao: observacao.trim(),
-      };
-
-      if (empIdRef) {
-        payloadAtualizacao.emprestimoId = empIdRef;
-      }
       if (diaVencRef && diaVencRef >= 1 && diaVencRef <= 31) {
         payloadAtualizacao.diaVencimento = diaVencRef;
       }
@@ -137,20 +166,97 @@ export function ModalEditarHistorico({
             </div>
           )}
 
-          {/* Resumo da Transação */}
+          {/* Tipo de Lançamento */}
           <div className="p-3 bg-gray-50 rounded-2xl border border-gray-150 flex items-center justify-between">
             <div className="flex flex-col">
               <span className="text-[9px] uppercase font-black tracking-wider text-giro-text-muted">
-                Tipo & Valor Original
+                Tipo do Lançamento
               </span>
               <span className="text-xs font-bold text-giro-text">
                 {historico.tipo === 'PAGAMENTO' ? 'Recebimento / Pagamento' : 'Aporte Concedido'}
               </span>
             </div>
-            <span className="text-sm font-black text-giro-primary">
-              {formatarMoeda(historico.valorTotal)}
+            <span className="text-xs font-black px-2.5 py-1 rounded-full bg-purple-100 text-purple-800 uppercase tracking-wider">
+              {historico.tipo}
             </span>
           </div>
+
+          {/* Valores do Pagamento */}
+          {historico.tipo === 'PAGAMENTO' ? (
+            <div className="flex flex-col gap-2 p-3 bg-purple-50/50 rounded-2xl border border-purple-100">
+              <div className="flex items-center justify-between">
+                <span className="text-xs font-bold text-purple-950">Composição do Pagamento</span>
+                <div className="flex items-center gap-1">
+                  <button
+                    type="button"
+                    onClick={handleApenasJuros}
+                    className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-purple-100 hover:bg-purple-200 text-purple-800 transition-colors cursor-pointer"
+                  >
+                    100% Juros
+                  </button>
+                  <button
+                    type="button"
+                    onClick={handleApenasAmortizacao}
+                    className="text-[9px] font-bold px-2 py-0.5 rounded-md bg-green-100 hover:bg-green-200 text-green-800 transition-colors cursor-pointer"
+                  >
+                    100% Amortização
+                  </button>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-3 gap-2">
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-bold text-giro-text-muted uppercase">Valor Total (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={valorTotal}
+                    onChange={e => setValorTotal(e.target.value)}
+                    required
+                    className="w-full px-2.5 py-1.5 bg-white border border-purple-200 rounded-xl text-xs font-black text-giro-text focus:outline-none focus:border-purple-500"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-bold text-orange-700 uppercase">Juros (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={valorJuros}
+                    onChange={e => setValorJuros(e.target.value)}
+                    required
+                    className="w-full px-2.5 py-1.5 bg-white border border-orange-200 rounded-xl text-xs font-bold text-orange-700 focus:outline-none focus:border-orange-500"
+                  />
+                </div>
+                <div className="flex flex-col gap-1">
+                  <label className="text-[10px] font-bold text-green-700 uppercase">Amortização (R$)</label>
+                  <input
+                    type="number"
+                    step="0.01"
+                    min="0"
+                    value={valorAmortizado}
+                    onChange={e => setValorAmortizado(e.target.value)}
+                    required
+                    className="w-full px-2.5 py-1.5 bg-white border border-green-200 rounded-xl text-xs font-bold text-green-700 focus:outline-none focus:border-green-500"
+                  />
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              <label className="text-xs font-bold text-giro-text">Valor do Aporte (R$)</label>
+              <input
+                type="number"
+                step="0.01"
+                min="0"
+                value={valorTotal}
+                onChange={e => setValorTotal(e.target.value)}
+                required
+                className="w-full px-3 py-2 bg-gray-50 border border-gray-200 rounded-xl text-xs font-bold text-giro-text focus:bg-white focus:border-purple-500 focus:outline-none transition-colors"
+              />
+            </div>
+          )}
 
           {/* Data do Lançamento */}
           <div className="flex flex-col gap-1.5">

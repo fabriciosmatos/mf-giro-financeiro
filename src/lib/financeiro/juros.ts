@@ -23,7 +23,7 @@ export function calcularDetalhamento(diaVencimento: number, dataReferencia: Date
   // ou se o pagamento ocorreu na janela de liquidação do ciclo daquele mês (ex: pagou dia 17 e vence dia 18),
   // o ciclo do mês já foi coberto e o primeiro vencimento real em aberto é no mês seguinte.
   const diffDiasCicloRef = Math.round((dataCiclo.getTime() - ref.getTime()) / (1000 * 60 * 60 * 24));
-  if (diffDiasCicloRef <= 15) {
+  if (diffDiasCicloRef <= 5) {
     dataCiclo.setMonth(dataCiclo.getMonth() + 1);
   }
 

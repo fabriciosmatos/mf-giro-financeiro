@@ -8,7 +8,7 @@ export interface InfoStatus {
   isAtrasado?: boolean;
 }
 
-const extrairData = (campo: any): Date => {
+export const extrairData = (campo: any): Date => {
   if (!campo) return new Date();
   if (campo instanceof Date) return campo;
   if (typeof campo.toDate === 'function') return campo.toDate();
@@ -24,6 +24,14 @@ const extrairData = (campo: any): Date => {
   }
   return dat;
 };
+
+export function obterDataBaseReferencia(emp: { dataInicio?: any; ultimoPagamento?: any }): Date {
+  const dInicio = extrairData(emp.dataInicio);
+  if (!emp.ultimoPagamento) return dInicio;
+  const dUltimo = extrairData(emp.ultimoPagamento);
+  // A data base de cálculo nunca pode ser anterior à data de criação do empréstimo
+  return dUltimo.getTime() >= dInicio.getTime() ? dUltimo : dInicio;
+}
 
 export function obterDadosFiscaisConsolidados(devedor: Devedor) {
   const emprestimos = devedor.emprestimos || [];
@@ -53,7 +61,7 @@ export function obterDadosFiscaisConsolidados(devedor: Devedor) {
     totalJurosMensalSimples += Number((e.saldoDevedor * (e.taxaJurosMensal / 100)).toFixed(2));
     
     const diaVenc = e.diaVencimento || 1;
-    const ref = extrairData(e.ultimoPagamento || e.dataInicio);
+    const ref = obterDataBaseReferencia(e);
       
     const det = calcularDetalhamento(diaVenc, ref, e.saldoDevedor, e.taxaJurosMensal);
     totalJurosAcumulados += det.jurosAcumulados;
